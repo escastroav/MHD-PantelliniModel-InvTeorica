@@ -4,9 +4,9 @@
 using namespace std;
 
 const int N = 50;
-const double R0 = 0.1;
+const double R0 = 1;
 
-const double g = 0.098*R0;
+const double g = 0.98*R0;
 const double H = N*R0*0.2; // kT/mg=rmax/5
 
 const double tf = sqrt(H/g);
@@ -53,11 +53,11 @@ void Ball::PrintBall(void)
 class Collider
 {
 private:
-  double t[N-1];
+  double t[N];
   double tmin=0.0;
   double I = 0;
 public:
-  //Collider(void);
+  Collider(void);
   double GetTmin(void){return tmin;};
   int GetIndex(void){return I;};
   void GetCollisionTime(Ball & ball1, Ball & ball2);
@@ -66,23 +66,27 @@ public:
   void CollideBound(Ball & ball0);
   void InitPositions(Ball * balls, Crandom ran);
 };
-/*Collider::Collider(void)
+Collider::Collider(void)
 {
-  t = new double[N];
-  }*/
+  for(int i=0;i<N;i++)
+    t[i] = 0;
+}
 void Collider::GetCollisionTime(Ball & ball1, Ball & ball2)
 {
   double t12=0,
     Vz1=ball1.Vz, Vz2=ball2.Vz,
     z1=ball1.z,z2=ball2.z, V12 = Vz2-Vz1;
-
-  t12 = V12 == 0.0 ? 1e10 : abs(z2-z1)/abs(V12);
-
   int i = ball2.i;
-  if(t12 < tmin)
-    {
-      tmin = t12;
-      I = i;
+  if(V12 == 0.0)
+    t12 = 1e10;
+  else
+    {     
+      t12 =abs(z2-z1)/abs(V12);    
+      if(t12 < tmin)
+	{
+	  tmin = t12;
+	  I = i;
+	}
     }
   t[i] = t12;
 }
@@ -142,9 +146,9 @@ int main()
   //1. Inicializar las posiciones de las particulas.
   colls.InitPositions(balls, rand64);
   
-  while(time < 100)
+  while(time < tf)
     {
-      //cout << time << "\t" << indexColl << "\t" << tColl << "\t" << balls[indexColl].GetZ() << "\t" << balls[indexColl].GetVz() << "\n" ;
+      cout << time << "\t" << indexColl << "\t" << tColl << "\t" << balls[indexColl].GetZ() << "\t" << balls[indexColl].GetVz() << "\n" ;
       //2. Calcular todos los tiempos de colision entre i e i-1.
       colls.CollisionTimeBound(balls[0]);
       for(int i = 1;i<N;i++)
@@ -153,6 +157,16 @@ int main()
 	}
       //3. Obtener el tmin e I de colision.
       tColl = colls.GetTmin();
+      if(tColl == 0)
+	{
+	  cout << "tiempo de colision es cero!\n";
+	  break;
+	}
+      if(tColl >= 1e10)
+	{
+	  cout << "tiempo de colision infinito!\n";
+	  break;
+	}
       indexColl = colls.GetIndex();
       //4. Integrar las particulas con dt=tmin.
       for(int i = 0;i<N;i++)
@@ -172,7 +186,6 @@ int main()
 	  balls[i].PrintBall();
 	  };
 	  time += tColl;*/
-      cout << "next step\n";
     }
   cout << tColl << endl;
   return 0;
