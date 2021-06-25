@@ -1,12 +1,13 @@
 #include <iostream>
 #include <cmath>
 #include "Random64.h"
+#include <iomanip>
 using namespace std;
 
 const int N = 50;
 const double R0 = 1;
 
-const double g = 0.98*R0;
+const double g = 9.8*R0;
 const double H = N*R0*0.2; // kT/mg=rmax/5
 
 const double tf = sqrt(H/g);
@@ -62,7 +63,7 @@ public:
   int GetIndex(void){return I;};
   void GetCollisionTime(Ball & ball1, Ball & ball2);
   void CollisionTimeBound(Ball & ball0);
-  void CollideBalls(Ball & ball1, Ball & ball2, Crandom rand);
+  void CollideBalls(Ball & ball1, Ball & ball2, Crandom rand, double dt);
   void CollideBound(Ball & ball0);
   void InitPositions(Ball * balls, Crandom ran);
 };
@@ -98,7 +99,7 @@ void Collider::CollisionTimeBound(Ball & ball0)
   I = 0;
   t[0] = t0;
 }
-void Collider::CollideBalls(Ball & ball1, Ball & ball2, Crandom ran)
+void Collider::CollideBalls(Ball & ball1, Ball & ball2, Crandom ran, double dt)
 {
   double phi = 2*M_PI*ran.r(), P = ran.r();
   double theta = acos(sqrt(P));
@@ -117,6 +118,8 @@ void Collider::CollideBalls(Ball & ball1, Ball & ball2, Crandom ran)
 
   ball1.Vx=Vx1p; ball1.Vy=Vy1p; ball1.Vz=Vz1p;
   ball2.Vx=Vx2p; ball2.Vy=Vy2p; ball2.Vz=Vz2p;
+  //Integrar...
+  ball1.z+=ball1.Vz*dt; ball2.z+=ball2.Vz*dt;
 }
 void Collider::CollideBound(Ball & ball0)
 {
@@ -135,7 +138,7 @@ void Collider::InitPositions(Ball * balls, Crandom ran)
     }
 }
 int main()
-{cout.precision(8);
+{cout << fixed;cout.precision(2);
   Crandom rand64(1);
   Ball balls[N];
   Collider colls;
@@ -145,10 +148,10 @@ int main()
 
   //1. Inicializar las posiciones de las particulas.
   colls.InitPositions(balls, rand64);
-  
+  cout << "time" << "\t" << "I" << "\t" << "tmin" << "\t" << "z_I" << "\t" << "Vz_I" << "\n" ;
   while(time < tf)
     {
-      cout << time << "\t" << indexColl << "\t" << tColl << "\t" << balls[indexColl].GetZ() << "\t" << balls[indexColl].GetVz() << "\n" ;
+      
       //2. Calcular todos los tiempos de colision entre i e i-1.
       colls.CollisionTimeBound(balls[0]);
       for(int i = 1;i<N;i++)
@@ -175,18 +178,24 @@ int main()
 	  balls[i].Integrate(tColl);
 	}
       //5. Realizar la colision entre I e I-1.
-      if(indexColl == 0)
+      if(indexColl == 0){
 	colls.CollideBound(balls[indexColl]);
-      else
-	colls.CollideBalls(balls[indexColl], balls[indexColl-1], rand64);
+	//balls[indexColl].Integrate(tColl);
+      }
+      else{
+	colls.CollideBalls(balls[indexColl], balls[indexColl-1], rand64, tColl);
+	//balls[indexColl-1].Integrate(tColl);
+	//balls[indexColl].Integrate(tColl);
+      }
       //6. Imprimir y actualizar el siguiente paso.
       /*
       for(int i=0;i<N;i++)
 	{
 	  balls[i].PrintBall();
-	  };
-	  time += tColl;*/
+	  };*/
+	  time += tColl;
+	  cout << time << "\t" << indexColl << "\t" << tColl << "\t" << balls[indexColl].GetZ() << "\t" << balls[indexColl].GetVz() << "\n" ;
     }
-  cout << tColl << endl;
+  //cout << tColl << endl;
   return 0;
 }
