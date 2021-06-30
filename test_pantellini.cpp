@@ -4,11 +4,12 @@
 #include <iomanip>
 using namespace std;
 
-const int N = 50;
-const double R0 = 1;
+const double size = 1;
+const int N = 50*size;
+const double R0 = 1/size;
 
 const double h = N*R0;
-const double g = 9.8*R0;
+const double g = 3*R0;
 const double H = h*0.2; // kT/mg=rmax/5
 
 const double tf = sqrt(H/g);
@@ -28,6 +29,7 @@ public:
   double GetVx(void){return Vx;};void SetVx(double Vxi){Vx=Vxi;};
   double GetVy(void){return Vy;};void SetVy(double Vyi){Vy=Vyi;};
   double GetVz(void){return Vz;};void SetVz(double Vzi){Vz=Vzi;};
+  int GetI(void){return i;};
   void MovementEq(void);
   void Integrate(double dt);
   void PrintBall(void);
@@ -66,6 +68,7 @@ public:
   void CollideBound(Ball & ball0);
   void InitPositions(Ball * balls, Crandom ran);
   void MeasureDensity(Ball * balls);
+  bool AreBallsSorted(Ball * balls);
 };
 Collider::Collider(void)
 {
@@ -128,31 +131,50 @@ void Collider::CollideBound(Ball & ball0)
 }
 void Collider::InitPositions(Ball * balls, Crandom ran)
 {
-  double zi=R0*ran.r();
+  double zi=R0;
   double vix = 0, viy = 0, viz = 0;
   for(int i = 0; i<N; i++)
     {
-      zi += R0*ran.r();
+      zi += R0;
       //viz = ran.r();
       balls[i].InitBall(i, zi, vix, viy, viz);
     }
 }
 void Collider::MeasureDensity(Ball * balls)
 {
-  int * n = new int[N];
   int j = 0;
-  double dz = 0.245;
-  for(int i = 0; i<N; i++)
+  double dz = 1e-3, zi = 0, ball_zi;
+  int M = h / dz;
+  int * n = new int[M];
+  int sum_n = 0;   
+  for(int l = 0;l<M;l++)
     {
-      j = balls[i].z / dz;
-      n[j]++;
+      zi = l*dz;
+      for(int i = 0; i<N; i++)
+	{
+	  ball_zi = balls[i].z;
+	  if(ball_zi >= zi && ball_zi < zi+dz)
+	    n[l]++;
+	}
+      if(n[l] != 0)
+	cout << zi << "\t" << n[l] << "\n";
+      sum_n += n[l];
+      if(sum_n >= N)
+	break;
     }
-  //imprimir n(z)
-  for(int i = 0;i<N;i++)
-    {
-      cout << dz*i << "\t" << n[i] << "\n";
-    }
+  
   delete n;
+}
+bool Collider::AreBallsSorted(Ball * balls)
+{
+  bool sorted = true;
+  for(int i=0;i<N-1;i++)
+    {
+      sorted = balls[i].z <= balls[i+1].z;
+      if(!sorted)
+	break;
+    }
+  return sorted;
 }
 void InicieAnimacion(void){
   cout<<"set terminal gif animate"<<endl; 
@@ -177,19 +199,22 @@ void TermineCuadro(void){
 }
 
 int main()
-{cout << fixed;cout.precision(4);
+{cout << fixed;cout.precision(20);
   Crandom rand64(1);
   Ball balls[N];
   Collider colls;
 
   double tColl = 0, time = 0; 
   int indexColl = 0;
+  int collisions = 0;
+
+  bool areBallsSorted = true;
 
   //1. Inicializar las posiciones de las particulas.
   colls.InitPositions(balls, rand64);
   //InicieAnimacion();
   //cout << "time" << "\t" << "I" << "\t" << "tmin" << "\t" << "z_I" << "\t" << "Vz_I" << "\n" ;
-  while(time <= 2*tf)
+  while(time <= 1000*tf)
     {
       
       //2. Calcular todos los tiempos de colision entre i e i-1.
@@ -202,12 +227,12 @@ int main()
       tColl = colls.GetTmin();
       if(tColl == 0)
 	{
-	  cout << "tiempo de colision es cero!\n";
+	  cout << "collision time is zero!\n";
 	  break;
 	}
       if(tColl >= 1e10)
 	{
-	  cout << "tiempo de colision infinito!\n";
+	  cout << "collision time is infinite!\n";
 	  break;
 	}
       indexColl = colls.GetIndex();
@@ -234,9 +259,11 @@ int main()
 	  TermineCuadro();*/
       
 	  time += tColl;
+	  collisions++;
 	  //cout << time << "\t" << indexColl << "\t" << tColl << "\t" << balls[indexColl].GetZ() << "\t" << balls[indexColl].GetVz() << "\n" ;
     }
   colls.MeasureDensity(balls);
-  //cout << tColl << endl;
+  //for(int i=0;i<N;i++)cout << balls[i].GetI() << "\t" << balls[i].GetZ() << "\n";
+  //cout << collisions << endl;
   return 0;
 }
