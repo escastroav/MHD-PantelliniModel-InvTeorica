@@ -44,6 +44,7 @@ void movement_equations (vector<particle> & particles, double dt);
 void sort_particles (vector<particle> & particles);
 void Get_Collision_Time(vector<particle> & particles, vector<double> & times, collision & collisions);
 void collision_time_boundary (vector<particle> & particles, vector<double> & times, collision & collisions);
+double Collide_particles_and_evolve_system (vector<particle> & particles, vector<double> & times, collision & collisions);
 
 int main ()
 {
@@ -200,27 +201,66 @@ void collision_time_boundary (vector<particle> & particles, vector<double> & tim
 }
 
 //Revisar notación
-/*
-void Collide_particles (vector<particle> particles)
+
+double Collide_particles_and_evolve_system (vector<particle> & particles, vector<double> & times, collision & collisions)
 {
-  double phi = 2*M_PI*ran.r(), P = ran.r();//Número aleatorio entre 0 a 2pi
-  double theta = acos(sqrt(P));
+  //Son tres posibles casos: 1) El tiempo mínimo pertenece a una colisión entre partículas vecinas, 2) el tiempo mínimo es una colisión entre la base y la partícula 1 o 3) el tiempo mínimo corresponde a que la última partícula ha sobrepasado la frontera exterior.
+  //genera numeros distribuidos uniformemente (Toca editar porque los perfiles de velocidad tienen una distribución maxwelliana)
 
-  double Vx1 = ball1.Vx, Vy1 = ball1.Vy, Vz1 = ball1.Vz;
-  double Vx2 = ball2.Vx, Vy2 = ball2.Vy, Vz2 = ball2.Vz;
+  vector<double> smallest_time (3, 0.0);
+  smallest_time[0] = collisions.t_min; //Tiempo mínimo de las colisiones entre partículas vecinas
+  smallest_time[1] = collisions.t_intb; //Tiempo en que la partícula 0 choca con la base
+  smallest_time[2] = collisions.t_extb; //Tiempo que la última partícula sale de la frontera exterior
+  
+  double tt = *min_element(smallest_time.begin(), smallest_time.end());
 
-  double Ux = Vx2-Vx1, Uy = Vy2-Vy1, Uz = Vz2-Vz1;
-  double  U = sqrt(Ux*Ux+Uy*Uy+Uz*Uz);
+  movement_equations (particles, tt); // Actualiza el sistema en el tiempo tt mínimo. (Es mejor separar otra función para evolucionar el sistema!!!)
+  
+  //Caso 1: Revisar muy bien como funciona el cambio de velocidades y phi y theta 
+  /*
+  if (tt == collisions.t_min)
+    {
+      std::mt19937 genP(seed);
+      std::uniform_real_distribution<double> dis(0, 2*M_PI);
+  
+      double phi = 2*M_PI*ran.r(), P = dis(genP); //Número aleatorio entre 0 a 2pi
+      double theta = acos(sqrt(P));
+      
+      double Vx1 = ball1.Vx, Vy1 = ball1.Vy, Vz1 = ball1.Vz;
+      double Vx2 = ball2.Vx, Vy2 = ball2.Vy, Vz2 = ball2.Vz;
+      
+      double Ux = Vx2-Vx1, Uy = Vy2-Vy1, Uz = Vz2-Vz1;
+      double  U = sqrt(Ux*Ux+Uy*Uy+Uz*Uz);
+      
+      double nx = cos(phi)*sin(theta), ny = sin(phi)*sin(theta), nz = cos(theta);
+      
+      double Vx1p = (Vx1+Vx2+U*nx)*0.5, Vx2p = (Vx1+Vx2-U*nx)*0.5;
+      double Vy1p = (Vy1+Vy2+U*ny)*0.5, Vy2p = (Vy1+Vy2-U*ny)*0.5;
+      double Vz1p = (Vz1+Vz2+U*nz)*0.5, Vz2p = (Vz1+Vz2-U*nz)*0.5;
+    }
+  */
+  //Caso 2:
 
-  double nx = cos(phi)*sin(theta), ny = sin(phi)*sin(theta), nz = cos(theta);
+  if (tt == collisions.t_intb)
+    {
+      particles[0].z = R0; //Es reenviada al sistema desde la base
+      particles[0].Vz *= -1.0; //En principio se cambia la velocidad en z, pero la idea es que sea Maxwelliana
+    }
 
-  double Vx1p = (Vx1+Vx2+U*nx)*0.5, Vx2p = (Vx1+Vx2-U*nx)*0.5;
-  double Vy1p = (Vy1+Vy2+U*ny)*0.5, Vy2p = (Vy1+Vy2-U*ny)*0.5;
-  double Vz1p = (Vz1+Vz2+U*nz)*0.5, Vz2p = (Vz1+Vz2-U*nz)*0.5;
+  //Caso 3: Se debe escoger si se reenvía desde la base o desde la frontera exterior dependiendo del campo E
+  /*
+  if(tt == collisions.t_extb)
+    {
+      
+    }
+  */
 
-  ball1.Vx=Vx1p; ball1.Vy=Vy1p; ball1.Vz=Vz1p;
-  ball2.Vx=Vx2p; ball2.Vy=Vy2p; ball2.Vz=Vz2p;
+  
+  //ball1.Vx=Vx1p; ball1.Vy=Vy1p; ball1.Vz=Vz1p;
+  //ball2.Vx=Vx2p; ball2.Vy=Vy2p; ball2.Vz=Vz2p;
   //Integrar...
   //ball1.z+=ball1.Vz*dt; ball2.z+=ball2.Vz*dt;
+
+  return tt;
 }
-*/
+
