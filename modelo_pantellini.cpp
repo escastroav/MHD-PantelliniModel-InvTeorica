@@ -12,7 +12,8 @@ using namespace std;
 
 const double size = 1;
 const int N = 5;//*size;
-const double R0 = 1/size;
+const double R0 = 5.0;
+const double Rf = 50*R0;
 const int seed = 0;
 const double h = N*R0;
 const double g = 3*R0;
@@ -31,7 +32,8 @@ struct particle{
 };
 
 struct collision{
-  double tmin = 0.0;
+  double tmin = 0.0; //Tiempo mínimo de colision entre partículas continuas
+  double t_b = 0.0; //Tiempo de colisión de las partículas (primera y última) con las respectivas fronteras
   int I = 0; //Identificará la partícula que colisiona en el tiempo tmin con ii+1
 };
   
@@ -39,6 +41,7 @@ void initial_values_particles (vector<particle> & particles);
 void movement_equations (vector<particle> & particles, double dt);
 void sort_particles (vector<particle> & particles);
 void Get_Collision_Time(vector<particle> & particles, vector<double> & times, collision & collisions);
+void collision_time_boundary (vector<particle> & particles, vector<double> & times, collision & collisions);
 
 int main ()
 {
@@ -55,7 +58,7 @@ int main ()
       std::cout<<ii<<"\t"<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
     }
 
-  movement_equations (particles, 1.2);
+  movement_equations (particles, 0.5);
 
   for (int ii=0; ii<N; ii++)
     {
@@ -69,16 +72,17 @@ int main ()
       std::cout<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
     }
 
-  vector<double> times (N-1, 0.0);
+  vector<double> times (N, 0.0); //En el espacio [N-1] (último espacio) guardará el tiempo menor de colisión con alguna frontera
 
   Get_Collision_Time(particles, times, time_collisions);
+  collision_time_boundary (particles, times, time_collisions);
   
-  for (int ii=0; ii<(N-1); ii++) //Para evitar un segmentation fault
+  for (int ii=0; ii<N; ii++) 
     {
       std::cout<<ii<<"\t"<<times[ii]<<std::endl;
     }
 
-  std::cout<<time_collisions.I<<"\t"<<time_collisions.tmin<<"\t"<<*min_element(times.begin(), times.end())<<std::endl;
+  std::cout<<time_collisions.I<<"\t"<<time_collisions.tmin<<"\t"<<time_collisions.t_b<<"\t"<<*min_element(times.begin(), times.end())<<std::endl;
   
   return 0;
 }
@@ -125,9 +129,8 @@ void sort_particles (vector<particle> & particles)
 
 void Get_Collision_Time(vector<particle> & particles, vector<double> & times, collision & collisions)
 {
-  //vector<double> times (N-1, 0.0); //Son N-1 posibles tiempos a calcular ya que van de manera consecutiva (3 partículas equivale al tiempo t12 y t23)
   
-  for (int ii=0; ii<(N-1); ii++) //Pues el N-1 asegura que no haya un segmentation fault en el for
+  for (int ii=0; ii<(N-1); ii++) //Pues el N-1 asegura que no se guarde ningun tiempo en el último espacio (designado para tiempos con las fronteras)
     {
       double vrel = (particles[ii+1].Vz-particles[ii].Vz);
       if(abs(vrel) > eps)
@@ -140,16 +143,43 @@ void Get_Collision_Time(vector<particle> & particles, vector<double> & times, co
     }
   // Hacer una estructura collide con info de la partícula I y el tiempo minimo tmin
   
-  collisions.tmin = *min_element(times.begin(), times.end());
+  collisions.tmin = *min_element(times.begin(), times.end()-1); //No tiene en cuenta el último elemento porque ese tiempo está asignado para las fronteras
   
   for (int ii=0; ii<(N-1); ii++) //Podría verse si se puede optimizar ya que se hace un for solamente para calcular I pudiendose obtener en el for previo.
     {
-      if (times[ii] == collisions.tmin)
+      if (abs(times[ii]-collisions.tmin) < eps) //pues se comparan double entonces usar == podría fallar
 	{
 	  collisions.I = ii+1;  //Pues los tiempos son tomados como ii a I-1 y ii+1 como I ya que ii inicia en cero
 	  break;
 	}
     }
+}
+
+void collision_time_boundary (vector<particle> & particles, vector<double> & times, collision & collisions)
+{
+  //Frontera base
+
+  double t_base = 0.0, Vz0 = particles[0].Vz, z0 = particles[0].z;
+  double Vz0f = -1.0*sqrt(pow(Vz0, 2) + 2*g*z0);
+  t_base = (Vz0-Vz0f)/g; //Tiempo que tarda una partícula en colisionar con la base
+
+  double t_bext = t_base+1, VzN = particles[N-1].Vz, zN = particles[N-1].z; //Pues en el arreglo la última partícula se guarda en N-1 ya que la primera lo hace en 0. Se asume de partida que es mayor al tbase para que en caso de que la ultima particula tenga velocidad negativa(no habría colision con la frontera exterior), y al momento de escoger el menor tiempo no salga tbext por ser definido cero
+
+  collisions.t_b = t_base; //Asigna al tiempo mínimo de colision con una frontera el tiempo calculado para la base
+  
+  if (VzN > 0) //Se calcula el tiempo tbext si la partícula se mueve hacia la frontera exterior 
+    {
+      double dis = abs(Rf-zN); //Aunque en teoría debería ser siempre positivo, aún falta cuadrar los rangos de las posiciones
+      double VzNf = sqrt(pow(VzN, 2)-2*g*dis); //pues dis>0 y es una desaceleración por eso el menos
+      t_bext = (VzN-VzNf)/g;
+    }
+  
+  if (t_base > t_bext) //Se verifica cual tiempo de colision para cada frontera es menor y se le asigna dicho valor a t_b 
+    {
+      collisions.t_b = t_bext;
+    }
+
+  times[N-1] = collisions.t_b; //Guarda el tiempo mínimo de colision con las fronteras en el vector times que almacena todos los tiempos de colisiones. Posteriormente en la funcion main se determina el tiempo minimo incluyendo los de las colisiones con las fronteras y las de las partículas vecinas.
 }
 
 //Revisar notación
