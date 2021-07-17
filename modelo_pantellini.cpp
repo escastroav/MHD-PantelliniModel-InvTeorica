@@ -23,6 +23,7 @@ const double eps = 1.0*pow(10, -10); //Para usar cuando comparamos doubles en lo
 const double infty = 1.0*pow(10, 10); //Para expresar que los tiempos son muy grandes
 
 //generación de una variable que tenga los atributos de una partícula
+
 struct particle{ 
   int id = 0;
   double z = 0.0;
@@ -50,41 +51,20 @@ int main ()
 {
   std::cout.precision(6);
   std::cout.setf(std::ios::scientific);
+
+  //Inicialización de todos los objetos necesarios
   vector<particle> particles (N);
-  initial_values_particles (particles);
   collision time_collisions;
-  
-  //Imprime primero las partículas con su información de datos dados aleatoriamente. Luego, evoluciona el sistema un tiempo dt y calcula los nuevos parámetros. Posteriormente, mira la información de las alturas de cada partícula y las ordena, cambiandoles el id. Luego se añade los tiempos de colision y se escoge el mínimo (No se ha tenido en cuenta la colisión con las fronteras)
-
-  std::cout<<"Se imprimen para 5 partículas sus valores asigandos aleatoriamente para id, z, Vx, Vy, Vz"<<std::endl;
-  
-  for (int ii=0; ii<N; ii++)
-    {
-      std::cout<<ii<<"\t"<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
-    }
-
-  movement_equations (particles, 0.5);
-
-  std::cout<<"Se evoluciona el sistema un dt=0.5 y se imprimen para las mismas 5 partículas sus valores para id, z, Vx, Vy, Vz"<<std::endl;
-  
-  for (int ii=0; ii<N; ii++)
-    {
-      std::cout<<ii<<"\t"<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
-    }
-  
-  sort_particles (particles);
-
-  std::cout<<"Se organizan las partículas de acuerdo a su posición y se imprimen id, z, Vx, Vy, Vz"<<std::endl;
-  
-  for(int ii=0; ii<N; ii++)
-    {
-      std::cout<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
-    }
-
   vector<double> times (N+1, 0.0); //En el espacio [N] y [N-1] (último dos espacios) guardará los tiempos de colisión con las fronteras int y ext.
 
+  //Imprime primero las partículas con su información de datos dados aleatoriamente. Luego mira la información de las alturas de cada partícula y las ordena, cambiandoles el id. Luego se añade los tiempos de colision y se escoge el mínimo (No se ha tenido en cuenta la colisión con las fronteras)
+
+  initial_values_particles (particles);
+  sort_particles (particles);
   Get_Collision_Time(particles, times, time_collisions);
   collision_time_boundary (particles, times, time_collisions);
+  
+  //movement_equations (particles, 0.5); //No es necesario colocarla ahora pero si funciona.
 
   std::cout<<"Se imprimen los tiempos de colisión (los primeros N-1 datos son colision entre particulas y los dos últimos son con fronteras)"<<std::endl;
   
@@ -96,7 +76,9 @@ int main ()
   std::cout<<"Se imprimen los tiempos mínimos de colisión (entre partículas y fronteras)"<<std::endl;
   
   std::cout<<time_collisions.I<<"\t"<<time_collisions.tmin<<"\t"<<time_collisions.t_intb<<"\t"<<time_collisions.t_extb<<"\t"<<*min_element(times.begin(), times.end())<<std::endl;
-  
+
+  Collide_particles_and_evolve_system (particles, times, time_collisions);
+
   return 0;
 }
 
@@ -108,12 +90,19 @@ void initial_values_particles (vector<particle> & particles) //Tiene como objeti
       particles[ii].id = ii;
       //genera numeros distribuidos uniformemente (Toca editar porque los perfiles de velocidad tienen una distribución maxwelliana)
       std::mt19937 gen(ii);
-      std::uniform_real_distribution<double> dis(0, 5.0);
-      std::uniform_real_distribution<double> disp(0, 10.0); 
+      std::uniform_real_distribution<double> dis(0, 5.0); //Rango de velocidades arbitrario
+      std::uniform_real_distribution<double> disp(R0, Rf); //Rangos del dominio de la simulación
       particles[ii].z = disp(gen);
       particles[ii].Vx = dis(gen);
       particles[ii].Vy = dis(gen);
       particles[ii].Vz = dis(gen);
+    }
+
+  std::cout<<"Se imprimen para 5 partículas sus valores asignados aleatoriamente para id, z, Vx, Vy, Vz"<<std::endl;
+  
+  for (int ii=0; ii<N; ii++)
+    {
+      std::cout<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
     }
 }
 
@@ -123,6 +112,13 @@ void movement_equations (vector<particle> & particles, double dt)
     {
       particles[ii].z += particles[ii].Vz*dt-0.5*g*pow(dt, 2);
       particles[ii].Vz += -g*dt;
+    }
+  
+  std::cout<<"Se evoluciona el sistema un ttminimo (cualquiera que sea el mínimo de times) y se imprimen para las mismas 5 partículas sus valores para id, z, Vx, Vy, Vz"<<std::endl;
+  
+  for (int ii=0; ii<N; ii++)
+    {
+      std::cout<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
     }
 }
 
@@ -137,6 +133,13 @@ void sort_particles (vector<particle> & particles)
   for (int ii=0; ii<N; ii++)
     {
       particles[ii].id = ii;
+    }
+
+  std::cout<<"Se organizan las partículas de acuerdo a su posición y se imprimen id, z, Vx, Vy, Vz"<<std::endl;
+  
+  for(int ii=0; ii<N; ii++)
+    {
+      std::cout<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
     }
 }
 
@@ -179,11 +182,12 @@ void collision_time_boundary (vector<particle> & particles, vector<double> & tim
   //Frontera externa:
   
   double t_bext = 0.0, VzN = particles[N-1].Vz, zN = particles[N-1].z;
+  double dis = abs(Rf-zN); //Aunque en teoría debería ser siempre positivo, aún falta cuadrar los rangos de las posiciones
+  double deter = pow(VzN, 2)-2*g*dis; //Término dentro de la raíz el cual debe ser positivo si la partícula puede alcanzar la frontera ext.
   
-  if (VzN >= 0) //Se calcula el tiempo tbext si la partícula se mueve hacia la frontera exterior 
+  if ((VzN >= 0) && (deter >= 0)) //Se calcula el tiempo tbext si la partícula se mueve hacia la frontera exterior 
     {
-      double dis = abs(Rf-zN); //Aunque en teoría debería ser siempre positivo, aún falta cuadrar los rangos de las posiciones
-      double VzNf = sqrt(pow(VzN, 2)-2*g*dis); //pues dis>0 y es una desaceleración por eso el menos
+      double VzNf = sqrt(deter); //pues dis>0 y es una desaceleración por eso el menos
       t_bext = (VzN-VzNf)/g;
     }
   else{
@@ -200,45 +204,55 @@ void collision_time_boundary (vector<particle> & particles, vector<double> & tim
   times[N] = collisions.t_extb; 
 }
 
-//Revisar notación
-
 double Collide_particles_and_evolve_system (vector<particle> & particles, vector<double> & times, collision & collisions)
 {
   //Son tres posibles casos: 1) El tiempo mínimo pertenece a una colisión entre partículas vecinas, 2) el tiempo mínimo es una colisión entre la base y la partícula 1 o 3) el tiempo mínimo corresponde a que la última partícula ha sobrepasado la frontera exterior.
   //genera numeros distribuidos uniformemente (Toca editar porque los perfiles de velocidad tienen una distribución maxwelliana)
 
   vector<double> smallest_time (3, 0.0);
-  smallest_time[0] = collisions.t_min; //Tiempo mínimo de las colisiones entre partículas vecinas
+  smallest_time[0] = collisions.tmin; //Tiempo mínimo de las colisiones entre partículas vecinas
   smallest_time[1] = collisions.t_intb; //Tiempo en que la partícula 0 choca con la base
   smallest_time[2] = collisions.t_extb; //Tiempo que la última partícula sale de la frontera exterior
   
   double tt = *min_element(smallest_time.begin(), smallest_time.end());
 
-  movement_equations (particles, tt); // Actualiza el sistema en el tiempo tt mínimo. (Es mejor separar otra función para evolucionar el sistema!!!)
+  movement_equations (particles, tt); // Actualiza el sistema en el tiempo tt mínimo.
   
   //Caso 1: Revisar muy bien como funciona el cambio de velocidades y phi y theta 
-  /*
-  if (tt == collisions.t_min)
+
+  if (tt == collisions.tmin)
     {
-      std::mt19937 genP(seed);
-      std::uniform_real_distribution<double> dis(0, 2*M_PI);
-  
-      double phi = 2*M_PI*ran.r(), P = dis(genP); //Número aleatorio entre 0 a 2pi
-      double theta = acos(sqrt(P));
+      int I = collisions.I;
       
-      double Vx1 = ball1.Vx, Vy1 = ball1.Vy, Vz1 = ball1.Vz;
-      double Vx2 = ball2.Vx, Vy2 = ball2.Vy, Vz2 = ball2.Vz;
+      std::mt19937 genP(seed);
+      std::uniform_real_distribution<double> disP(0, 1.0);
+      std::mt19937 genphi(seed);
+      std::uniform_real_distribution<double> disphi(0, 2*M_PI);
+      
+      double phi = disphi(genphi), P = disP(genP); //Número aleatorio entre 0 a 2pi para phi y 0 a 1 para P
+      double theta = acos(sqrt(P));
+
+      double Vx1 = particles[I-1].Vx, Vy1 = particles[I-1].Vy, Vz1 = particles[I-1].Vz; //Para I se guarda en I-1
+      double Vx2 = particles[I-2].Vx, Vy2 = particles[I-2].Vy, Vz2 = particles[I-2].Vz; //Para la partícula I-1 se guarda en I-2
       
       double Ux = Vx2-Vx1, Uy = Vy2-Vy1, Uz = Vz2-Vz1;
-      double  U = sqrt(Ux*Ux+Uy*Uy+Uz*Uz);
+      double U = sqrt(Ux*Ux+Uy*Uy+Uz*Uz);
       
       double nx = cos(phi)*sin(theta), ny = sin(phi)*sin(theta), nz = cos(theta);
-      
+      //¿Cómo se calculan estas velocidades? Revisar!!!!!!!!!!!
       double Vx1p = (Vx1+Vx2+U*nx)*0.5, Vx2p = (Vx1+Vx2-U*nx)*0.5;
       double Vy1p = (Vy1+Vy2+U*ny)*0.5, Vy2p = (Vy1+Vy2-U*ny)*0.5;
       double Vz1p = (Vz1+Vz2+U*nz)*0.5, Vz2p = (Vz1+Vz2-U*nz)*0.5;
+      //Se actualizan las velocidades de la Partícula I después de la colisión
+      particles[I-1].Vx = Vx1p;
+      particles[I-1].Vy = Vy1p;
+      particles[I-1].Vz = Vz1p;
+      //Se actualizan las velocidades de la Partícula I-1 después de la colisión
+      particles[I-2].Vx = Vx2p;
+      particles[I-2].Vy = Vy2p;
+      particles[I-2].Vz = Vz2p;
     }
-  */
+  
   //Caso 2:
 
   if (tt == collisions.t_intb)
@@ -248,19 +262,20 @@ double Collide_particles_and_evolve_system (vector<particle> & particles, vector
     }
 
   //Caso 3: Se debe escoger si se reenvía desde la base o desde la frontera exterior dependiendo del campo E
-  /*
+  
   if(tt == collisions.t_extb)
     {
-      
+      particles[N-1].z = Rf; //Es reenviada al sistema desde la frontera exterior.
+      particles[N-1].Vz *= -1.0; //En principio se cambia la velocidad en z, pero la idea es que sea Maxwelliana
     }
-  */
 
+  std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de la colisión"<<std::endl;
   
-  //ball1.Vx=Vx1p; ball1.Vy=Vy1p; ball1.Vz=Vz1p;
-  //ball2.Vx=Vx2p; ball2.Vy=Vy2p; ball2.Vz=Vz2p;
-  //Integrar...
-  //ball1.z+=ball1.Vz*dt; ball2.z+=ball2.Vz*dt;
-
+  for (int ii=0; ii<N; ii++)
+    {
+      std::cout<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
+    }
+  
   return tt;
 }
 
