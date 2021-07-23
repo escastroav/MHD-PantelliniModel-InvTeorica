@@ -48,6 +48,7 @@ void Get_Collision_Time(vector<particle> & particles, vector<double> & times, co
 void collision_time_boundary (vector<particle> & particles, vector<double> & times, collision & collisions);
 double Collide_particles_and_evolve_system (vector<particle> & particles, vector<double> & times, collision & collisions);
 void Maxwellian_distribution (vector<particle> & particles);
+void evolve_system (vector<particle> & particles, vector<double> & times, collision & collisions);
 void print_some_stuff (vector<particle> & particles, vector<double> & times, collision & collisions);
 
 int main ()
@@ -63,8 +64,8 @@ int main ()
   
   //Imprime primero las partículas con su información de datos dados aleatoriamente. Luego mira la información de las alturas de cada partícula y las ordena, cambiandoles el id. Luego se añade los tiempos de colision y se escoge el mínimo (No se ha tenido en cuenta la colisión con las fronteras)
 
-  //print_some_stuff (particles, times, time_collisions);
-  Maxwellian_distribution (particles);
+  print_some_stuff (particles, times, time_collisions);
+  //Maxwellian_distribution (particles);
   //movement_equations (particles, 0.5); //No es necesario colocarla ahora pero si funciona.
 
   return 0;
@@ -150,15 +151,22 @@ void collision_time_boundary (vector<particle> & particles, vector<double> & tim
   //Frontera interna
   
   double t_base = infty, Vz0 = particles[0].Vz, z0 = particles[0].z;
-
+  
   if (z0 != R0){  //La partícula no se encuentre en la base pues daría un tiempo igual a cero y eso significa que ya colisionó antes
     double Vz0f = -1.0*sqrt(pow(Vz0, 2) + 2*g*abs(z0-R0)); //En teoría z0 siempre debería ser mayor a R0.
     t_base = (Vz0-Vz0f)/g; //Tiempo que tarda una partícula en colisionar con la base
+    /*
+      if(abs(t_base)<=eps) // En teoría los tiempos son positivos, pero ponemos abs en caso de que por posibles errores de truncamiento de valores negativos muy cercanos a cero. (En la práctica este seria cero).
+      {
+      t_base = infty;      //Si tbase es cero eso quiere decir que la primera partícula se encuentra en la base y por lo tanto el tiempo más pequeño daría cero. Eso haría que el sistema no evolucione en el tiempo, por tal razon se omite éste tiempo.
+      }
+    */  
   }
+  
   //Frontera externa:
   
   double t_bext = infty, VzN = particles[N-1].Vz, zN = particles[N-1].z;
-
+  
   if (zN != Rf){ //Verifica que la partícula no se encuentre en la frontera exterior
     double dis = abs(Rf-zN); //Aunque en teoría debería ser siempre positivo, aún falta cuadrar los rangos de las posiciones
     double deter = pow(VzN, 2)-2*g*dis; //Término dentro de la raíz el cual debe ser positivo si la partícula puede alcanzar la fron. ext
@@ -172,12 +180,13 @@ void collision_time_boundary (vector<particle> & particles, vector<double> & tim
       t_bext = infty;
     }
   }
+  
   //Asigna los tiempos mínimos de colisión de la primera y ultima partícula a la estructura collisions.
   collisions.t_intb = t_base;
   collisions.t_extb = t_bext;
-  
+
   //Guarda el tiempo mínimo de colision con las fronteras en el vector times que almacena todos los tiempos de colisiones. Posteriormente en la funcion main se determina el tiempo minimo incluyendo los de las colisiones con las fronteras y las de las partículas vecinas.
-  
+
   times[N-1] = collisions.t_intb;
   times[N] = collisions.t_extb; 
 }
@@ -188,10 +197,22 @@ double Collide_particles_and_evolve_system (vector<particle> & particles, vector
   //genera numeros distribuidos uniformemente (Toca editar porque los perfiles de velocidad tienen una distribución maxwelliana)
 
   vector<double> smallest_time (3, 0.0);
+  /*
+  if(abs(collisions.t_intb)<=eps) // En teoría los tiempos son positivos, pero ponemos abs en caso de que por posibles errores de truncamiento de valores negativos muy cercanos a cero. (En la práctica este seria cero).
+  {
+    collisions.t_intb = infty;      //Si tintb es cero eso quiere decir que la primera partícula se encuentra en la base y por lo tanto el tiempo más pequeño daría cero. Eso haría que el sistema no evolucione en el tiempo, por tal razon se omite éste tiempo.
+  }
+
+if(abs(collisions.t_extb)<=eps) //eps es casi cero, pero como comparamos doubles por eso no usamos == 0.0
+  {
+    collisions.t_extb = infty;    //Si textb es cero eso quiere decir que la ultima partícula se encuentra en la frontera exterior y por lo tanto el tiempo más pequeño daría cero. Eso haría que el sistema no evolucione en el tiempo, por tal razon se omite éste tiempo.
+  }
+  */
+  
   smallest_time[0] = collisions.tmin; //Tiempo mínimo de las colisiones entre partículas vecinas
   smallest_time[1] = collisions.t_intb; //Tiempo en que la partícula 0 choca con la base
   smallest_time[2] = collisions.t_extb; //Tiempo que la última partícula sale de la frontera exterior
-  
+
   double tt = *min_element(smallest_time.begin(), smallest_time.end());
 
   movement_equations (particles, tt); // Actualiza el sistema en el tiempo tt mínimo.
@@ -250,23 +271,19 @@ double Collide_particles_and_evolve_system (vector<particle> & particles, vector
   return tt;
 }
 
-void Maxwellian_distribution (vector<particle> & particles)
+void evolve_system (vector<particle> & particles, vector<double> & times, collision & collisions)
 {
-  unsigned seed2 = chrono::system_clock::now().time_since_epoch().count();
-  default_random_engine generator(seed);
-  
-  // Boltzmann factor times temperature
-  const double k_T = 0.1;
-  
-  // setup the Maxwell distribution, i.e. gamma distribution with alpha = 3/2
-  gamma_distribution<double> maxwell(3./2., k_T);
-  
-  // generate Maxwell-distributed values
-  for (int ii = 0; ii < 10000; ii++) {
-    particles[ii].Vz = maxwell(generator);
-    cout <<maxwell(generator) << endl;
-  }
+  //initial_values_particles (particles);
+
+  for (int ii=0; ii<1; ii++) //Hacemos un paso de evolución más
+    {
+      sort_particles (particles);
+      Get_Collision_Time(particles, times, collisions);
+      collision_time_boundary (particles, times, collisions);
+      Collide_particles_and_evolve_system (particles, times, collisions);
+    }
 }
+
 
 void print_some_stuff (vector<particle> & particles, vector<double> & times, collision & collisions)
 {
@@ -309,9 +326,42 @@ void print_some_stuff (vector<particle> & particles, vector<double> & times, col
     {
       std::cout<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
     }
+
+  evolve_system (particles, times, collisions);
+
+  std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de evolucionar una vez más el sistema"<<std::endl;
+  
+  for (int ii=0; ii<N; ii++)
+    {
+      std::cout<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
+    }
+
+  std::cout<<"Se imprimen los tiempos mínimos de la segunda colisión (entre partículas y fronteras)"<<std::endl;
+  
+  std::cout<<collisions.I<<"\t"<<collisions.tmin<<"\t"<<collisions.t_intb<<"\t"<<collisions.t_extb<<"\t"<<*min_element(times.begin(), times.end())<<std::endl;
 }
 
 /*
 Posibles problemas a tener en cuenta:
 - Si una partícula está en la base o en la frontera exterior, no la tenemos en cuenta para el paso de evolución, pero y sus partículas vecinas? puede darse el caso en que la segunda esté mas cerca de la base que cualesquiera dos partículas colisionen y lo mismo para la otra frontera.
+*/
+
+/*
+void Maxwellian_distribution (vector<particle> & particles)
+{
+  unsigned seed2 = chrono::system_clock::now().time_since_epoch().count();
+  default_random_engine generator(seed);
+  
+  // Boltzmann factor times temperature
+  const double k_T = 0.1;
+  
+  // setup the Maxwell distribution, i.e. gamma distribution with alpha = 3/2
+  gamma_distribution<double> maxwell(3./2., k_T);
+  
+  // generate Maxwell-distributed values
+  for (int ii = 0; ii < 10000; ii++) {
+    particles[ii].Vz = maxwell(generator);
+    cout <<maxwell(generator) << endl;
+  }
+}
 */
