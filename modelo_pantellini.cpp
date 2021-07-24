@@ -12,13 +12,13 @@ using namespace std;
 //Definición de constantes
 
 const double size = 1;
-const int N = 5;//*size;
+const int N = 50;//*size;
 const double R0 = 5.0;
 const double Rf = 50*R0;
 const int seed = 0;
 const double h = N*R0;
 const double g = 3*R0;
-const double H = h*0.2; // kT/mg=rmax/5
+const double H = 0.2; // kT/mg=rmax/5
 const double tf = sqrt(H/g);
 const double eps = 1.0*pow(10, -10); //Para usar cuando comparamos doubles en los for
 const double infty = 1.0*pow(10, 10); //Para expresar que los tiempos son muy grandes
@@ -50,6 +50,7 @@ double Collide_particles (vector<particle> & particles, vector<double> & times, 
 void Maxwellian_distribution (vector<particle> & particles);
 void evolve_system (vector<particle> & particles, vector<double> & times, collision & collisions);
 void print_some_stuff (vector<particle> & particles, vector<double> & times, collision & collisions);
+void density_of_particles (vector<particle> particles);
 
 int main ()
 {
@@ -248,30 +249,38 @@ double Collide_particles (vector<particle> & particles, vector<double> & times, 
 void evolve_system (vector<particle> & particles, vector<double> & times, collision & collisions)
 {
   initial_values_particles (particles);
+  /*
   std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de darles unos valores iniciales:"<<std::endl;
   
   for (int jj=0; jj<N; jj++)
     {
       std::cout<<particles[jj].id<<"\t"<<particles[jj].z<<"\t"<<particles[jj].Vx<<"\t"<<particles[jj].Vy<<"\t"<<particles[jj].Vz<<std::endl;
     }
-  
-  for (int ii=0; ii<10; ii++) //Hacemos un paso de evolución más
+  */
+  for (int ii=0; ii<20; ii++) //Hacemos un paso de evolución más
     {
       sort_particles (particles);
       Get_Collision_Time(particles, times, collisions);
       collision_time_boundary (particles, times, collisions);
-      
+      /*
       std::cout<<"Se imprimen los tiempos mínimos de la colisión "<<ii+1<<" (entre partículas y fronteras)"<<std::endl;
       std::cout<<collisions.I<<"\t"<<collisions.tmin<<"\t"<<collisions.t_intb<<"\t"<<collisions.t_extb<<"\t"<<*min_element(times.begin(), times.end())<<std::endl;
-
+      */
       Collide_particles (particles, times, collisions);
-
+      /*
       std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de evolucionar por "<<ii+1<<" vez el sistema"<<std::endl;
 
       for (int jj=0; jj<N; jj++)
-	{
-	  std::cout<<particles[jj].id<<"\t"<<particles[jj].z<<"\t"<<particles[jj].Vx<<"\t"<<particles[jj].Vy<<"\t"<<particles[jj].Vz<<std::endl;
-	}
+      {
+      std::cout<<particles[jj].id<<"\t"<<particles[jj].z<<"\t"<<particles[jj].Vx<<"\t"<<particles[jj].Vy<<"\t"<<particles[jj].Vz<<std::endl;
+      }
+      */
+    }
+  
+  std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de darles unos valores iniciales:"<<std::endl;
+  for (int jj=0; jj<N; jj++)
+    {
+      std::cout<<particles[jj].id<<"\t"<<particles[jj].z<<"\t"<<particles[jj].Vx<<"\t"<<particles[jj].Vy<<"\t"<<particles[jj].Vz<<std::endl;
     }
 }
 
@@ -279,10 +288,46 @@ void evolve_system (vector<particle> & particles, vector<double> & times, collis
 void print_some_stuff (vector<particle> & particles, vector<double> & times, collision & collisions)
 {
   evolve_system (particles, times, collisions);
+  density_of_particles (particles);
 }
+
+void density_of_particles (vector<particle> particles)
+{
+  double dz = 5.0 , deltaZ = Rf-R0; //deltaZ = 245
+  int M = deltaZ/dz; //M=49  
+  std::vector<int> density (M, 0.0);
+  int sum_n = 0;
+
+  cout << "Altura z promedio"<< "\t" << "Densidad de partículas" << "\n";
+  
+  for(int ll=0; ll<M; ll++)
+    {
+      double zi = R0;
+      
+      zi += ll*dz;
+      
+      for(int ii = 0; ii<N; ii++)
+	{	  
+	  if((particles[ii].z > zi) && (particles[ii].z < zi+dz))
+	    density[ll]++;
+	}
+      
+      if(density[ll] != 0)
+	{
+	  cout << zi+dz/2 << "\t" << density[ll] << "\n"; //Escoge a zi el valor medio de altura del intervalo escogido
+	  sum_n += density[ll];
+	}
+    }
+  
+  cout << "Número de partículas N resultado de sumar por cada intervalo de z las densidades: "<<sum_n<<"\n";
+}
+
 /*
 Posibles problemas a tener en cuenta:
-- Si una partícula está en la base o en la frontera exterior, no la tenemos en cuenta para el paso de evolución, pero y sus partículas vecinas? puede darse el caso en que la segunda esté mas cerca de la base que cualesquiera dos partículas colisionen y lo mismo para la otra frontera.
+- Si una partícula está en la base o en la frontera exterior, no la tenemos en cuenta para el paso de evolución, pero y sus partículas vecinas? puede darse el caso en que la segunda esté mas cerca de la base que cualesquiera dos partículas colisionen y lo mismo para la otra frontera. Si solo tenemos la coordenada z no debería haber inconveniente, pues primero chocan las primeras dos antes de que la segunda toca la base.
+
+-Falta Hacer la función de densidad de partículas.
+
 */
 
 /*
