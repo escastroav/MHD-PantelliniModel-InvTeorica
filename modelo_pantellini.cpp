@@ -140,7 +140,7 @@ void Get_Collision_Time(vector<particle> & particles, vector<double> & times, co
     {
       if (abs(times[ii]-collisions.tmin) < eps) //pues se comparan double entonces usar == podría fallar
 	{
-	  collisions.I = ii+1;  //Pues los tiempos son tomados como ii a I-1 y ii+1 como I ya que ii inicia en cero
+	  collisions.I = ii+2;  //Pues el elemento times[ii] te da tiempo entre ii y ii+1, significa que I=ii+2 y I-1=ii+1 pues ii empieza en cero y no en 1. (Suponga que el tmin es entre la particula 1 y 2, I deberia ser 2 y no 1 pues en nuestra notacion no existe la particula cero, pero en los vectores el cero le corresponde a la particula 1)
 	  break;
 	}
     }
@@ -231,8 +231,8 @@ if(abs(collisions.t_extb)<=eps) //eps es casi cero, pero como comparamos doubles
       double phi = disphi(genphi), P = disP(genP); //Número aleatorio entre 0 a 2pi para phi y 0 a 1 para P
       double theta = acos(sqrt(P));
 
-      double Vx1 = particles[I-1].Vx, Vy1 = particles[I-1].Vy, Vz1 = particles[I-1].Vz; //Para I se guarda en I-1
-      double Vx2 = particles[I-2].Vx, Vy2 = particles[I-2].Vy, Vz2 = particles[I-2].Vz; //Para la partícula I-1 se guarda en I-2
+      double Vx1 = particles[I-1].Vx, Vy1 = particles[I-1].Vy, Vz1 = particles[I-1].Vz; 
+      double Vx2 = particles[I-2].Vx, Vy2 = particles[I-2].Vy, Vz2 = particles[I-2].Vz; 
       
       double Ux = Vx2-Vx1, Uy = Vy2-Vy1, Uz = Vz2-Vz1;
       double U = sqrt(Ux*Ux+Uy*Uy+Uz*Uz);
@@ -280,7 +280,18 @@ void evolve_system (vector<particle> & particles, vector<double> & times, collis
       sort_particles (particles);
       Get_Collision_Time(particles, times, collisions);
       collision_time_boundary (particles, times, collisions);
+      
+      std::cout<<"Se imprimen los tiempos mínimos de la segunda colisión (entre partículas y fronteras)"<<std::endl;
+      std::cout<<collisions.I<<"\t"<<collisions.tmin<<"\t"<<collisions.t_intb<<"\t"<<collisions.t_extb<<"\t"<<*min_element(times.begin(), times.end())<<std::endl;
+
       Collide_particles_and_evolve_system (particles, times, collisions);
+
+      std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de evolucionar una vez más el sistema"<<std::endl;
+
+      for (int jj=0; jj<N; jj++)
+	{
+	  std::cout<<particles[jj].id<<"\t"<<particles[jj].z<<"\t"<<particles[jj].Vx<<"\t"<<particles[jj].Vy<<"\t"<<particles[jj].Vz<<std::endl;
+	}
     }
 }
 
@@ -328,19 +339,7 @@ void print_some_stuff (vector<particle> & particles, vector<double> & times, col
     }
 
   evolve_system (particles, times, collisions);
-
-  std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de evolucionar una vez más el sistema"<<std::endl;
-  
-  for (int ii=0; ii<N; ii++)
-    {
-      std::cout<<particles[ii].id<<"\t"<<particles[ii].z<<"\t"<<particles[ii].Vx<<"\t"<<particles[ii].Vy<<"\t"<<particles[ii].Vz<<std::endl;
-    }
-
-  std::cout<<"Se imprimen los tiempos mínimos de la segunda colisión (entre partículas y fronteras)"<<std::endl;
-  
-  std::cout<<collisions.I<<"\t"<<collisions.tmin<<"\t"<<collisions.t_intb<<"\t"<<collisions.t_extb<<"\t"<<*min_element(times.begin(), times.end())<<std::endl;
 }
-
 /*
 Posibles problemas a tener en cuenta:
 - Si una partícula está en la base o en la frontera exterior, no la tenemos en cuenta para el paso de evolución, pero y sus partículas vecinas? puede darse el caso en que la segunda esté mas cerca de la base que cualesquiera dos partículas colisionen y lo mismo para la otra frontera.
