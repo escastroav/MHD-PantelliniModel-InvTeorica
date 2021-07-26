@@ -50,7 +50,7 @@ double Collide_particles (vector<particle> & particles, vector<double> & times, 
 void Maxwellian_distribution (vector<particle> & particles);
 void evolve_system (vector<particle> & particles, vector<double> & times, collision & collisions);
 void print_some_stuff (vector<particle> & particles, vector<double> & times, collision & collisions);
-void density_of_particles (vector<particle> particles);
+int density_of_particles (vector<particle> particles);
 
 int main ()
 {
@@ -243,7 +243,7 @@ double Collide_particles (vector<particle> & particles, vector<double> & times, 
     {
       particles[N-1].z = Rf; //Es reenviada al sistema desde la frontera exterior.
       particles[N-1].Vz *= -1.0; //En principio se cambia la velocidad en z, pero la idea es que sea Maxwelliana
-      collisions.I = 0;
+      collisions.I = N+1;
     }
   
   return tt;
@@ -292,7 +292,7 @@ void print_some_stuff (vector<particle> & particles, vector<double> & times, col
   density_of_particles (particles);
 }
 
-void density_of_particles (vector<particle> particles)
+int density_of_particles (vector<particle> particles)
 {
   double dz = 5.0 , deltaZ = Rf-R0; //deltaZ = 245
   int M = deltaZ/dz; //M=49  
@@ -320,7 +320,8 @@ void density_of_particles (vector<particle> particles)
 	}
     }
   
-  cout << "Número de partículas N resultado de sumar por cada intervalo de z las densidades: "<<sum_n<<"\n";
+  //cout << "Número de partículas N resultado de sumar por cada intervalo de z las densidades: "<<sum_n<<"\n";
+  return sum_n;
 }
 
 /*
