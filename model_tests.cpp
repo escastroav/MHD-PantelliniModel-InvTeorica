@@ -1,9 +1,29 @@
 #define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include "catch2/catch.hpp"
-#include "Random64.h"
+#include "pantellini.h"
 
-TEST_CASE( "Se revisa que las probabilidades no exceda", "[factorial]" ) {
 
+TEST_CASE( "Se verifica que las partículas que colisionan primero tengan la misma altura z", "[collide_particles]" ) {
+
+  vector<particle> particles (N);
+  collision time_collisions;
+  vector<double> times (N+1, 0.0); //En el espacio [N] y [N-1] (último dos espacios) guardará los tiempos de colisión con las fronteras int y ext.
+  
+  initial_values_particles (particles);
+
+  for (int ii=1; ii<100; ii++) //La primera no se tiene en cuenta 
+    {
+      sort_particles (particles);
+      Get_Collision_Time(particles, times, time_collisions);
+      collision_time_boundary (particles, times, time_collisions);
+      Collide_particles (particles, times, time_collisions);
+      int I = time_collisions.I;
+      if (time_collisions.I != 0)
+	{
+	  REQUIRE(particles[I-1].z == particles[I-2].z);  //Pues I se guar en I-1
+	}
+    }
+  
   
   /*
   unsigned int N=64;

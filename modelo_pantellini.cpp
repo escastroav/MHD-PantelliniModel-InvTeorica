@@ -12,7 +12,7 @@ using namespace std;
 //Definición de constantes
 
 const double size = 1;
-const int N = 50;//*size;
+const int N = 5;//*size;
 const double R0 = 5.0;
 const double Rf = 50*R0;
 const int seed = 0;
@@ -134,6 +134,7 @@ void Get_Collision_Time(vector<particle> & particles, vector<double> & times, co
 	  break;
 	}
     }
+  
 }
 
 void collision_time_boundary (vector<particle> & particles, vector<double> & times, collision & collisions)
@@ -193,7 +194,7 @@ double Collide_particles (vector<particle> & particles, vector<double> & times, 
   //Caso 1: Revisar muy bien como funciona el cambio de velocidades y phi y theta 
 
   if (tt == collisions.tmin)
-    {
+    { 
       int I = collisions.I;
       
       std::mt19937 genP(seed); //Recomendable que la semilla no sea la misma para cuando es sistema tenga que evolucionar muchas veces.
@@ -233,6 +234,7 @@ double Collide_particles (vector<particle> & particles, vector<double> & times, 
     {
       particles[0].z = R0; //Es reenviada al sistema desde la base
       particles[0].Vz *= -1.0; //En principio se cambia la velocidad en z, pero la idea es que sea Maxwelliana
+      collisions.I = 0;
     }
 
   //Caso 3: Se debe escoger si se reenvía desde la base o desde la frontera exterior dependiendo del campo E
@@ -241,6 +243,7 @@ double Collide_particles (vector<particle> & particles, vector<double> & times, 
     {
       particles[N-1].z = Rf; //Es reenviada al sistema desde la frontera exterior.
       particles[N-1].Vz *= -1.0; //En principio se cambia la velocidad en z, pero la idea es que sea Maxwelliana
+      collisions.I = 0;
     }
   
   return tt;
@@ -257,24 +260,22 @@ void evolve_system (vector<particle> & particles, vector<double> & times, collis
       std::cout<<particles[jj].id<<"\t"<<particles[jj].z<<"\t"<<particles[jj].Vx<<"\t"<<particles[jj].Vy<<"\t"<<particles[jj].Vz<<std::endl;
     }
   */
-  for (int ii=0; ii<20; ii++) //Hacemos un paso de evolución más
+  for (int ii=0; ii<10; ii++) //Hacemos un paso de evolución más
     {
       sort_particles (particles);
       Get_Collision_Time(particles, times, collisions);
-      collision_time_boundary (particles, times, collisions);
-      /*
+      collision_time_boundary (particles, times, collisions);  
+      Collide_particles (particles, times, collisions);
       std::cout<<"Se imprimen los tiempos mínimos de la colisión "<<ii+1<<" (entre partículas y fronteras)"<<std::endl;
       std::cout<<collisions.I<<"\t"<<collisions.tmin<<"\t"<<collisions.t_intb<<"\t"<<collisions.t_extb<<"\t"<<*min_element(times.begin(), times.end())<<std::endl;
-      */
-      Collide_particles (particles, times, collisions);
-      /*
+      
       std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de evolucionar por "<<ii+1<<" vez el sistema"<<std::endl;
 
       for (int jj=0; jj<N; jj++)
       {
       std::cout<<particles[jj].id<<"\t"<<particles[jj].z<<"\t"<<particles[jj].Vx<<"\t"<<particles[jj].Vy<<"\t"<<particles[jj].Vz<<std::endl;
       }
-      */
+      
     }
   
   std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de darles unos valores iniciales:"<<std::endl;
