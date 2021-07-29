@@ -13,14 +13,14 @@ using namespace std;
 
 const double size = 1;
 const int N = 5;//*size;
-const double R0 = 5.0;
-const double Rf = 50*R0;
+const double R0 = 0.0;
+const double Rf = 250.0; //50R0
 const int seed = 0;
 const double h = N*R0;
 const double g = 3*R0;
 const double H = 0.2; // kT/mg=rmax/5
 const double tf = sqrt(H/g);
-const double eps = 1.0*pow(10, -10); //Para usar cuando comparamos doubles en los for
+const double eps = 1.0*pow(10, -50); //Para usar cuando comparamos doubles en los for
 const double infty = 1.0*pow(10, 10); //Para expresar que los tiempos son muy grandes
 
 //generación de una variable que tenga los atributos de una partícula
@@ -252,20 +252,14 @@ double Collide_particles (vector<particle> & particles, vector<double> & times, 
 void evolve_system (vector<particle> & particles, vector<double> & times, collision & collisions)
 {
   initial_values_particles (particles);
-  /*
-  std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de darles unos valores iniciales:"<<std::endl;
   
-  for (int jj=0; jj<N; jj++)
-    {
-      std::cout<<particles[jj].id<<"\t"<<particles[jj].z<<"\t"<<particles[jj].Vx<<"\t"<<particles[jj].Vy<<"\t"<<particles[jj].Vz<<std::endl;
-    }
-  */
-  for (int ii=0; ii<10; ii++) //Hacemos un paso de evolución más
+  for (int ii=0; ii<20; ii++) //Hacemos un paso de evolución más
     {
       sort_particles (particles);
       Get_Collision_Time(particles, times, collisions);
       collision_time_boundary (particles, times, collisions);  
       Collide_particles (particles, times, collisions);
+      
       std::cout<<"Se imprimen los tiempos mínimos de la colisión "<<ii+1<<" (entre partículas y fronteras)"<<std::endl;
       std::cout<<collisions.I<<"\t"<<collisions.tmin<<"\t"<<collisions.t_intb<<"\t"<<collisions.t_extb<<"\t"<<*min_element(times.begin(), times.end())<<std::endl;
       
@@ -277,12 +271,13 @@ void evolve_system (vector<particle> & particles, vector<double> & times, collis
       }
       
     }
-  
+  /*
   std::cout<<"Se imprimen para las 5 partículas sus valores para id, z, Vx, Vy, Vz después de darles unos valores iniciales:"<<std::endl;
   for (int jj=0; jj<N; jj++)
     {
       std::cout<<particles[jj].id<<"\t"<<particles[jj].z<<"\t"<<particles[jj].Vx<<"\t"<<particles[jj].Vy<<"\t"<<particles[jj].Vz<<std::endl;
     }
+  */
 }
 
 
@@ -320,7 +315,7 @@ int density_of_particles (vector<particle> particles)
 	}
     }
   
-  //cout << "Número de partículas N resultado de sumar por cada intervalo de z las densidades: "<<sum_n<<"\n";
+  cout << "Número de partículas N resultado de sumar por cada intervalo de z las densidades: "<<sum_n<<"\n";
   return sum_n;
 }
 
