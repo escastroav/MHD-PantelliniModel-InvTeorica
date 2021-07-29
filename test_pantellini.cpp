@@ -5,11 +5,11 @@
 using namespace std;
 
 const double size = 1;
-const int N = 50*size;
-const double R0 = 1e-3/size;
+const int N = 5*size;
+const double R0 = 1/size;
 
 const double h = N*R0;
-const double g = 9.8e-10*R0;
+const double g = 9.8e-3*R0;
 const double H = h*.2; // kT/mg=rmax/5
 
 const double tf = sqrt(H/g);
@@ -73,12 +73,13 @@ public:
   void InitPositions(Ball * balls, Crandom ran);
   void MeasureDensity(Ball * balls);
   void PrintDensity(void);
+  double TotalEnergy(Ball * balls);
   bool AreBallsSorted(Ball * balls);
 };
 Collider::Collider(void)
 {
   M = 1000;
-  dz = h / M;
+  dz = 0.083 / M;
   n = new double[M];
   for(int i=0;i<N;i++)
     t[i] = 0;
@@ -93,7 +94,7 @@ void Collider::GetCollisionTime(Ball & ball1, Ball & ball2)
     Vz1=ball1.Vz, Vz2=ball2.Vz,
     z1=ball1.z,z2=ball2.z, V12 = Vz2-Vz1;
   int i = ball2.i;
-  if(V12 == 0.0)
+  if(V12 >= 0.0)
     t12 = 1e10;
   else
     {     
@@ -156,7 +157,7 @@ void Collider::MeasureDensity(Ball * balls)
 {
   int j = 0;
   double zi = 0, ball_zi;
-  dz = balls[N-1].z/M;
+  //dz = balls[N-1].z/M;
   //int sum_n = 0;   
   for(int l = 0;l<M;l++)
     {
@@ -165,7 +166,7 @@ void Collider::MeasureDensity(Ball * balls)
 	{
 	  ball_zi = balls[i].z;
 	  if(ball_zi >= zi && ball_zi < zi+dz)
-	    n[l]++;
+	    n[l]+=1./N;
 	}
       
       /*sum_n += n[l];
@@ -215,9 +216,19 @@ void InicieCuadro(void){
 void TermineCuadro(void){
     cout<<endl;
 }
-
+double Collider::TotalEnergy(Ball * balls)
+{
+  double K=0.,U=0.,E=0.;
+    for(int i=0;i<=N;i++)
+      {
+	K += 0.5*(balls[i].Vx*balls[i].Vx + balls[i].Vy*balls[i].Vy + balls[i].Vz*balls[i].Vz);
+	U += g*balls[i].z;
+      }
+    E = K + U;
+    return E;
+}
 int main()
-{cout << fixed;cout.precision(20);
+{cout << fixed;cout.precision(4);
   Crandom rand64(1);
   Ball balls[N];
   Collider colls;
@@ -226,15 +237,27 @@ int main()
   int indexColl = 0;
   int collisions = 0;
 
+  double E0 = 0.;
   bool areBallsSorted = true;
 
   //1. Inicializar las posiciones de las particulas.
   colls.InitPositions(balls, rand64);
   //InicieAnimacion();
-  //cout << "time" << "\t" << "I" << "\t" << "tmin" << "\t" << "z_I" << "\t" << "Vz_I" << "\n" ;
+  cout << "coll" << "\t" << "time" << "\t" << "z1" << "\t" <<  "z2" << "\t" <<  "z3" << "\t" <<  "z4" << "\t" <<  "z5" << "\n" ;
   while(time <= 100*tf)
     {
-      
+      // 0. Imprimir.
+            cout << collisions << "\t" << time
+	   << "\t" <<  balls[0].GetZ()
+	   << "\t" << balls[1].GetZ()
+	   << "\t" << balls[2].GetZ()
+	   << "\t" << balls[3].GetZ()
+	   << "\t" << balls[4].GetZ()
+	//<< "\t" << balls[5].GetZ()
+	// << "\t" << balls[6].GetZ()
+	//<< "\t" << balls[7].GetZ()
+	//<< "\t" << balls[8].GetZ()
+	/* << "\t" << balls[9].GetZ()*/ <<"\n" ;
       //2. Calcular todos los tiempos de colision entre i e i-1.
       colls.CollisionTimeBound(balls[0]);
       for(int i = 1;i<N;i++)
@@ -279,9 +302,10 @@ int main()
 	colls.MeasureDensity(balls);
       time += tColl;
       collisions++;
-	  //cout << time << "\t" << indexColl << "\t" << tColl << "\t" << balls[indexColl].GetZ() << "\t" << balls[indexColl].GetVz() << "\n" ;
+      E0 = colls.TotalEnergy(balls);
+
     }
-  colls.PrintDensity();
+  //colls.PrintDensity();
   //for(int i=0;i<N;i++)cout << balls[i].GetI() << "\t" << balls[i].GetZ() << "\n";
   cout << collisions << endl;
   return 0;
