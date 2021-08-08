@@ -25,6 +25,8 @@ const double TL = 6.4;
 
 const double kB = 1;//??
 
+const double U_ab = 1;//??
+
 const double Zi = 0.1786178958448091;
 const double Lambda = -0.2123418310626054;
 const double Xi = -0.06626458266981849;
@@ -46,7 +48,7 @@ private:
 
   double E = 0;
 public:
-  void InitBall(int i0, double z0, double Vx0, double Vy0, double Vz0);
+  void InitBall(int i0, double z0, double Vx0, double Vy0, double Vz0,double qs, double ms);
   double GetZ(void){return z;};void SetZ(double zi){z=zi;};
   double GetM(void){return m;};void SetM(double mi){m=mi;};
   double GetQ(void){return q;};void SetQ(double qi){q=qi;};
@@ -54,11 +56,10 @@ public:
   double GetVy(void){return Vy;};void SetVy(double Vyi){Vy=Vyi;};
   double GetVz(void){return Vz;};void SetVz(double Vzi){Vz=Vzi;};
   int GetI(void){return i;};
-  void MovementEq(void);
+  void MovementEq(double epsilon);
   void ElectricField(double epsilon);
   void IntegrateZ(double dt, double coeff);
   void IntegrateV(double dt, double coeff);
-  void PrintBall(void);
   friend class Collider;
 };
 void Ball::InitBall(int i0, double z0, double Vx0, double Vy0, double Vz0, double qs, double ms)
@@ -69,8 +70,8 @@ void Ball::ElectricField(double epsilon)
 }
 void Ball::MovementEq(double epsilon)
 {
-  double Ei = ElectricField(epsilon);
-  az = -g + q*Ei/m;
+  ElectricField(epsilon);
+  az = -g + q*E/m;
 }
 void Ball::IntegrateZ(double dt, double coeff)
 {
@@ -80,18 +81,12 @@ void Ball::IntegrateV(double dt, double coeff)
 {
   Vz += az*dt*coeff;
 }
-void Ball::PrintBall(void)
-{
-  cout<<" , "<<
-    0<<"+"<<R0*0.1<<"*cos(t),"<<
-    z<<"+"<<R0*0.1<<"*sin(t)"; 
-}
 class Collider
 {
 private:
   double t[N];
   double tmin=0.0;
-  double I = 0;
+  int I = 0;
   double * n = nullptr;
   double dz = 0.245*L;
   int M = 0;
@@ -149,7 +144,7 @@ void Collider::CollisionTimeGround(Ball & ball0)
   double t0=0, z0 = ball0.z, Vz0 = ball0.Vz, az0 = ball0.az;
   double disc = Vz0*Vz0-2*az0*z0;
   if(disc >= 0)
-    t0 = (Vz0 + sqrt(disc))/az;
+    t0 = (Vz0 + sqrt(disc))/az0;
   else
     t0 = 1e10;
   tmin = t0;
@@ -161,7 +156,7 @@ void Collider::CollisionTimeCeil(Ball & ball0)
   double t0=0, z0 = ball0.z, Vz0 = ball0.Vz, az0 = ball0.az;
   double disc = Vz0*Vz0-2*az0*z0;
   if(disc >= 0)
-    t0 = (Vz0 - sqrt(disc))/az;
+    t0 = (Vz0 - sqrt(disc))/az0;
   else
     t0 = 1e10;
   if(t0<tmin)
@@ -198,15 +193,15 @@ void Collider::CollideBalls(Ball & ball1, Ball & ball2, Crandom ran, double dt)
 }
 void Collider::CollideGround(Ball & ball0, Crandom ran)//Maxwellian distribution
 {
-  float alpha = ball0.m/(2*kB*T0);
+  float alpha = ball0.m/(2*kB*T0), sigma = sqrt(1./(2*alpha));
   ran.Reset((unsigned long long)rand());//Actualziar seed para que ran.r() no sea el mismo.
-  double V0 = ran.gauss(0.,1/(sigma*sigma));
+  double V0 = ran.gauss(0.,sigma);
   
   double P_th=0,theta=0,test_th=0;
   while(true)//Intento de generar variable aleatorio con distribución sin^2(theta)
     {//Alguien que se acuerde de sus clases de probabilidad, pa ver como se hace esto!!!
       ran.Reset((unsigned long long)rand());
-      P_th = asin(sqrt(ranr.r()));
+      P_th = asin(sqrt(ran.r()));
       ran.Reset((unsigned long long)rand());
       test_th = ran.r();
       if(test_th < P_th)
@@ -225,15 +220,15 @@ void Collider::CollideGround(Ball & ball0, Crandom ran)//Maxwellian distribution
 }
 void Collider::CollideCeil(Ball & ball0, Crandom ran)//Maxwellian distribution
 {
-float alpha = ball0.m/(2*kB*T0);
+  float alpha = ball0.m/(2*kB*T0),sigma = sqrt(1./(2*alpha));
   ran.Reset((unsigned long long)rand());//Actualziar seed para que ran.r() no sea el mismo.
-  double V0 = ran.gauss(0.,1/(sigma*sigma));
+  double V0 = ran.gauss(0.,sigma);
   
   double P_th=0,theta=0,test_th=0;
   while(true)//Intento de generar variable aleatorio con distribución sin^2(theta)
     {//Alguien que se acuerde de sus clases de probabilidad, pa ver como se hace esto!!!
       ran.Reset((unsigned long long)rand());
-      P_th = asin(sqrt(ranr.r()));
+      P_th = asin(sqrt(ran.r()));
       ran.Reset((unsigned long long)rand());
       test_th = ran.r();
       if(test_th < P_th)
@@ -250,7 +245,7 @@ float alpha = ball0.m/(2*kB*T0);
   ball0.Vy=V0*ny;
   ball0.Vz=-V0*nz;
 }
-double CollisionProbability(Ball & ball1, Ball & ball2)
+double Collider::CollisionProbability(Ball & ball1, Ball & ball2)
 {
   double ux = ball2.Vx - ball1.Vx, uy = ball2.Vy - ball1.Vy, uz = ball2.Vz - ball1.Vz;
   double u = sqrt(ux*ux+uy*uy+uz*uz);
@@ -265,6 +260,7 @@ void Collider::InitPositions(Ball * balls, Crandom ran)
   double zi=R0;
   double chance=0;
   double qs=0, ms=0;
+  double vix=0,viy=0,viz=0;
   for(int i = 0; i<N; i++)
     {
       zi += R0;
@@ -320,27 +316,6 @@ double Collider::ChargeNeutrality(Ball * balls)
     }
   return moments/L;
 }
-void InicieAnimacion(void){
-  cout<<"set terminal gif animate"<<endl; 
-  cout<<"set output 'pelicula.gif'"<<endl;
-  cout<<"unset key"<<endl;
-  cout<<"set yrange[-1:"<<L*0.25<<"]"<<endl;
-  cout<<"set xrange["<<-R0<<":"<<R0<<"]"<<endl;
-  cout<<"set size ratio -1"<<endl;
-  cout<<"set parametric"<<endl;
-  cout<<"set trange [0:7]"<<endl;
-  cout<<"set isosamples 12"<<endl;  
-}
-void InicieCuadro(void){
-  cout<<"plot "<<-R0<<",0 ";
-    cout<<" , "<<R0/7<<"*t,0";        //pared de abajo
-    cout<<" , "<<R0/7<<"*t,"<<h;     //pared de arriba
-    cout<<" , 0,"<<h/7<<"*t";        //pared de la izquierda
-    cout<<" , "<<R0<<","<<h/7<<"*t"; //pared de la derecha
-}
-void TermineCuadro(void){
-    cout<<endl;
-}
 double Collider::TotalEnergy(Ball * balls)
 {
   double K=0.,U=0.,E=0.;
@@ -363,9 +338,11 @@ int main()
   int collisions = 0;
 
   double E0 = 1.;
-  double eps = 1e-1;
+  double eps = 1e-1;//??
 
   double collP = 0, collR = 0;
+
+  double polarization=0,minPol=q0*R0/L;//??
 
   //1. Inicializar las posiciones de las particulas.
   colls.InitPositions(balls, rand64);
@@ -424,7 +401,7 @@ int main()
       else{
 	rand64.Reset((unsigned long long)rand());
 	collP = colls.CollisionProbability(balls[indexColl], balls[indexColl-1]);
-	collR = rand64.ran();
+	collR = rand64.r();
 	if(collR < collP)//decidir si colisiona o no. (no estoy seguro si es asi pero tiene sentido.)
 	  colls.CollideBalls(balls[indexColl], balls[indexColl-1], rand64, tColl);	
       }
