@@ -7,19 +7,20 @@ using namespace std;
 
 const double gmma = 23;
 
+const double Rsun = 1.;//1 unidad de longitud (u.a.L)= Rsun(SI)/10 = 6.9634e7 m
 const int N = 4;//80 protones y 80 electrones. N no sebe ser impar
-const double R0 = 1./N;//1 unidad de longitud (u.a.L)= Rsun(SI)/10 = 6.9634e7 m
 
-const double L = R0*N;
-const double Rsun = 10*L;//L=0.1Rsun
+const double L = 0.1*Rsun;
+const double R0 = L/N;
+
 const double g = 3.934e-6;// u.a.L/s^2
 
 const double tf = sqrt(L/g);//504.12 s
 
-const double mp = 1.;//no tiene que ser el real pero ajá 
+const double mp = 1.6e-8;//no tiene que ser el real pero ajá 
 const double me = 1e-2*mp;//mass ratio me/mp = 100
 
-const double q0 = 1e-3;//??
+const double q0 = 1.6e-3;//??
 
 const double T0 = 5e5;// Kelvin
 const double TL = 6.4e5;//
@@ -83,6 +84,7 @@ class Collider
 {
 private:
   double t[N];
+  double E[N];
   double tmin=0.0;
   int I = 0;
   double * n = nullptr;
@@ -94,6 +96,7 @@ public:
   double GetTmin(void){return tmin;};
   int GetIndex(void){return I;};
   void GetCollisionTime(Ball & ball1, Ball & ball2);
+  void GetElectricField(Ball * ball, double epsilon);
   void CollisionTimeGround(Ball & ball0);
   void CollisionTimeCeil(Ball & ball0);
   void CollideBalls(Ball & ball1, Ball & ball2, Crandom rand, double dt);
@@ -140,13 +143,23 @@ void Collider::GetCollisionTime(Ball & ball1, Ball & ball2)
     }
   t[i] = t12;
 }
+void Collider::GetElectricField(Ball* balls,double epsilon)
+{
+  double Q0 = balls[0].q, QN = balls[N-1].q;
+  E[0] = ET + (QN-Q0)*epsilon*0.5;
+  for(int i=1;i<N;i++)
+    {
+      E[i] = E[i-1] + balls[i].q*epsilon;
+      balls[i].E = E[i];
+    }
+}
 void Collider::CollisionTimeGround(Ball & ball0)
 {
   double t0=0, z0 = ball0.z, Vz0 = ball0.Vz, az0 = ball0.az;
   double disc = Vz0*Vz0-2*az0*z0, t1=0,t2=0;
-  if(z0 == 0)
+  if(abs(z0) < 1e-10)
     t0 = 1e10;
-  if(az0 == 0)
+  else if(az0 == 0)
     {
       if(Vz0<0)
 	t0 = -z0/Vz0;
@@ -176,9 +189,9 @@ void Collider::CollisionTimeCeil(Ball & ball0)
 {
   double t0=0, z0 = ball0.z-L, Vz0 = ball0.Vz, az0 = ball0.az;
   double disc = Vz0*Vz0-2*az0*z0, t1=0,t2=0;
-  if(z0 == 0)
+  if(abs(z0) < 1e-10)
     t0 = 1e10;
-  if(az0 == 0)
+  else if(az0 == 0)
     {
       if(Vz0>0)
 	t0 = -z0/Vz0;
@@ -367,12 +380,14 @@ double Collider::TotalEnergy(Ball * balls)
 }
 void Collider::SortParticles(Ball * balls)
 {
+  Ball ballSwap = balls[0];
   for(int j=0;j<N-1;j++)
     {
-      if(balls[j+1].z - balls[j].z < 0)
+      if(balls[j+1].z < balls[j].z)
 	{
-	  balls[j+1].i = j;
-	  balls[j].i = j+1;
+	  ballSwap = balls[j+1];
+	  balls[j+1] = balls[j];
+	  balls[j] = ballSwap;
 	}
     }
 }
@@ -384,7 +399,7 @@ void Collider::ShowTimes(void)
   cout << endl;
 }
 int main()
-{cout << fixed;cout.precision(6);
+{cout << fixed;cout.precision(8);
   Crandom rand64(1);
   Ball balls[N];
   Collider colls;
@@ -394,12 +409,13 @@ int main()
   int collisions = 0;
 
   double E0 = ET;
-  double eps = 1e-1;//??
+  double eps = mp*vm*vm/(R0*q0*q0);//...
 
   double collP = 0, collR = 0;
   //1. Inicializar las posiciones de las particulas.
   colls.InitPositions(balls, rand64);
-  double polarization=0,minPol=q0*R0/L;//??
+	
+  double polarization=0,minPol=q0*L;//??
   cout << "index" <<"\t\t"<< "m" <<"\t\t"<< "q" <<"\t\t"<< "z" <<"\t\t"<< "vz" << "\t\t" << "Ei" << "\n"; 
   for(int i=0;i<N;i++)
     cout << balls[i].GetI() << "\t"
@@ -407,12 +423,11 @@ int main()
 	 << balls[i].GetQ() << "\t"
 	 << balls[i].GetZ() << "\t"
 	 << balls[i].GetVz() << "\t"
-	 << balls[i].GetE() << "\n";
- 
+	 << balls[i].GetE() << "\n"; 
+  cout << "-------------------------------------------------" << endl;
 
   while(collisions <= 15)
     {
-      
       colls.CollisionTimeGround(balls[0]);
       for(int i = 1;i<N-1;i++)
 	{
@@ -437,12 +452,13 @@ int main()
 	  break;
 	}
       indexColl = colls.GetIndex();
+      colls.ShowTimes();
+      cout << "collison" << "\t\t" << "tColl" << "\t\t" << "indexColl" << endl;
+      cout << collisions << "\t" << tColl << "\t" << indexColl << endl;
       //4. Integrar las particulas con dt=tmin.
-      for(int i = 0;i<N;i++)
-	{
+      for(int i = 0;i<N;i++){
 	  balls[i].Integrate(tColl);
-	  balls[i].MovementEq(eps);
-	}
+	  balls[i].MovementEq(eps);}
       //5. Realizar la colision entre I e I-1. 
       if(indexColl == 0){
 	colls.CollideGround(balls[indexColl],rand64);
@@ -468,12 +484,9 @@ int main()
 	cout << "polarization is low! : " << polarization << "\n";
 	E0 += eps;}
       
-      //colls.SortParticles(balls);
+      colls.SortParticles(balls);
       
       //7. Imprimir y actualizar el siguiente paso.
-      colls.ShowTimes();
-      cout << "collison" << "\t\t" << "tColl" << "\t\t" << "indexColl" << endl;
-      cout << collisions << "\t" << tColl << "\t" << indexColl << endl;
       cout << "index" <<"\t\t"<< "m" <<"\t\t"<< "q" <<"\t\t"<< "z" <<"\t\t"<< "vz" << "\t\t" << "Ei" <<"\n"; 
       for(int i=0;i<N;i++)
 	cout << balls[i].GetI() << "\t"
@@ -482,7 +495,7 @@ int main()
 	     << balls[i].GetZ() << "\t"
 	     << balls[i].GetE() << "\t"
 	     << balls[i].GetVz() << "\n";
-      
+      cout << "-------------------------------------------------" << endl;
       //if(collisions > 5000 && collisions % 50 == 0)
       //	colls.MeasureDensity(balls);
       time += tColl;
