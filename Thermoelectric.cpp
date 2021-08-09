@@ -5,27 +5,31 @@
 #include <cstdlib>
 using namespace std;
 
-const int N = 160;
-const double R0 = 1.;
+const double gmma = 23;
 
-const double L = N*R0;
-const double g = 0;
+const int N = 16;//80 protones y 80 electrones. N no sebe ser impar
+const double R0 = 1.0/N;//1 unidad de longitud (u.a.L)= Rsun(SI)/10 = 6.9634e7 m
 
-const double tf = sqrt(L/g);
+const double L = R0*N;
+const double Rsun = 10*L;//L=0.1Rsun
+const double g = 3.934e-6;// u.a.L/s^2
 
-const double mp = 1.;
-const double me = 1e-2;
+const double tf = sqrt(L/g);//504.12 s
 
-const double q0 = 1e-1;
+const double mp = 1.;//no tiene que ser el real pero ajá 
+const double me = 1e-2;//mass ratio me/mp = 100
 
-const double E0 = 0.;
+const double q0 = 1e-3;//??
 
-const double T0 = 0.5;//1e6 Kelvin
-const double TL = 6.4;
+const double T0 = 5e5;//1e6 Kelvin
+const double TL = 6.4e5;//
 
-const double kB = 1;//??
+const double kB = g*Rsun*mp/(2*gmma*T0);//Ec 12 del paper On temperature Profile...
 
-const double U_ab = 1;//??
+const double vm = sqrt(2*kB*T0/me);
+const double U_ab = 0.5*vm;
+
+const double ET = me*vm*vm/(q0*L);
 
 const double Zi = 0.1786178958448091;
 const double Lambda = -0.2123418310626054;
@@ -196,9 +200,10 @@ void Collider::CollideGround(Ball & ball0, Crandom ran)//Maxwellian distribution
   float alpha = ball0.m/(2*kB*T0), sigma = sqrt(1./(2*alpha));
   ran.Reset((unsigned long long)rand());//Actualziar seed para que ran.r() no sea el mismo.
   double V0 = ran.gauss(0.,sigma);
-  
-  double P_th=0,theta=0,test_th=0;
-  while(true)//Intento de generar variable aleatorio con distribución sin^2(theta)
+  ran.Reset((unsigned long long)rand());
+  double P_th=ran.r(),theta=acos(sqrt(P_th));
+  /* No es necesario este ciclo... 
+while(true)//Intento de generar variable aleatorio con distribución sin^2(theta)
     {//Alguien que se acuerde de sus clases de probabilidad, pa ver como se hace esto!!!
       ran.Reset((unsigned long long)rand());
       P_th = asin(sqrt(ran.r()));
@@ -209,7 +214,7 @@ void Collider::CollideGround(Ball & ball0, Crandom ran)//Maxwellian distribution
 	  theta = test_th;
 	  break;
 	}
-    }
+	}*/
   
   ran.Reset((unsigned long long)rand());
   double phi = 2*M_PI*ran.r();
@@ -223,9 +228,10 @@ void Collider::CollideCeil(Ball & ball0, Crandom ran)//Maxwellian distribution
   float alpha = ball0.m/(2*kB*T0),sigma = sqrt(1./(2*alpha));
   ran.Reset((unsigned long long)rand());//Actualziar seed para que ran.r() no sea el mismo.
   double V0 = ran.gauss(0.,sigma);
-  
-  double P_th=0,theta=0,test_th=0;
-  while(true)//Intento de generar variable aleatorio con distribución sin^2(theta)
+  ran.Reset((unsigned long long)rand());
+  double P_th=ran.r(),theta=acos(sqrt(P_th));
+  /* No es necesario este ciclo... 
+while(true)//Intento de generar variable aleatorio con distribución sin^2(theta)
     {//Alguien que se acuerde de sus clases de probabilidad, pa ver como se hace esto!!!
       ran.Reset((unsigned long long)rand());
       P_th = asin(sqrt(ran.r()));
@@ -236,7 +242,7 @@ void Collider::CollideCeil(Ball & ball0, Crandom ran)//Maxwellian distribution
 	  theta = test_th;
 	  break;
 	}
-    }
+	}*/
   
   ran.Reset((unsigned long long)rand());
   double phi = 2*M_PI*ran.r();
@@ -261,14 +267,16 @@ void Collider::InitPositions(Ball * balls, Crandom ran)
   double chance=0;
   double qs=0, ms=0;
   double vix=0,viy=0,viz=0;
+  int protons = 0;
   for(int i = 0; i<N; i++)
     {
       zi += R0;
       ran.Reset((unsigned long long)rand());
       chance = ran.r();// Probabilidad debe ser 0.5
-      if(chance < 0.5){//es proton
+      if(chance < 0.5 && protons < N/2){//es proton
 	qs = q0;
 	ms = mp;
+	protons++;
       }else{//es electron
 	qs = -q0;
 	ms = me;
@@ -337,7 +345,7 @@ int main()
   int indexColl = 0;
   int collisions = 0;
 
-  double E0 = 1.;
+  double E0 = ET;
   double eps = 1e-1;//??
 
   double collP = 0, collR = 0;
@@ -347,7 +355,7 @@ int main()
   //1. Inicializar las posiciones de las particulas.
   colls.InitPositions(balls, rand64);
   
-  while(time <= 0*tf)
+  while(time <= 0)
     {
       
       colls.CollisionTimeGround(balls[0]);
