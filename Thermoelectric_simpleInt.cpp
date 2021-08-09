@@ -8,9 +8,9 @@ using namespace std;
 const double gmma = 23;
 
 const double Rsun = 1.;//1 unidad de longitud (u.a.L)= Rsun(SI)/10 = 6.9634e7 m
-const int N = 4;//80 protones y 80 electrones. N no sebe ser impar
+const int N = 100;//80 protones y 80 electrones. N no sebe ser impar
 
-const double L = 0.1*Rsun;
+const double L = 5*Rsun;
 const double R0 = L/N;
 
 const double g = 3.934e-6;// u.a.L/s^2
@@ -30,7 +30,7 @@ const double kB = g*Rsun*mp/(2*gmma*T0);//Ec 12 del paper On temperature Profile
 const double vm = sqrt(2*kB*T0/me);
 const double U_ab = 1e-1;
 
-const double ET = 0;//me*vm*vm/(q0*L);
+const double ET = g*mp*(1-1e-2)/(2*q0);
 
 class Ball
 {
@@ -55,8 +55,8 @@ public:
   double GetVy(void){return Vy;};void SetVy(double Vyi){Vy=Vyi;};
   double GetVz(void){return Vz;};void SetVz(double Vzi){Vz=Vzi;};
   int GetI(void){return i;};
-  void MovementEq(double epsilon);
-  void ElectricField(double epsilon);
+  void MovementEq(double epsilon, double E0);
+  void ElectricField(double epsilon, double E0);
   void Integrate(double dt);
   friend class Collider;
 };
@@ -66,13 +66,13 @@ void Ball::InitBall(int i0, double z0, double Vx0, double Vy0, double Vz0, doubl
   E = ET;
   az = -g + q*E/m;
 }
-void Ball::ElectricField(double epsilon)
+void Ball::ElectricField(double epsilon, double E0)
 {
-  E += q*epsilon*0.5;
+  E += q*epsilon*0.5 + E0;
 }
-void Ball::MovementEq(double epsilon)
+void Ball::MovementEq(double epsilon,double E0)
 {
-  ElectricField(epsilon);
+  ElectricField(epsilon,E0);
   az = -g + q*E/m;
 }
 void Ball::Integrate(double dt)
@@ -266,7 +266,8 @@ while(true)//Intento de generar variable aleatorio con distribución sin^2(theta
   
   ran.Reset((unsigned long long)rand());
   double phi = 2*M_PI*ran.r();
-  double nx = cos(phi)*sin(theta), ny = sin(phi)*sin(theta), nz = cos(theta); 
+  double nx = cos(phi)*sin(theta), ny = sin(phi)*sin(theta), nz = cos(theta);
+  ball0.z = 0;
   ball0.Vx=V0*nx;
   ball0.Vy=V0*ny;
   ball0.Vz=V0*nz;
@@ -294,7 +295,8 @@ while(true)//Intento de generar variable aleatorio con distribución sin^2(theta
   
   ran.Reset((unsigned long long)rand());
   double phi = 2*M_PI*ran.r();
-  double nx = cos(phi)*sin(theta), ny = sin(phi)*sin(theta), nz = cos(theta); 
+  double nx = cos(phi)*sin(theta), ny = sin(phi)*sin(theta), nz = cos(theta);
+  ball0.z=L; 
   ball0.Vx=V0*nx;
   ball0.Vy=V0*ny;
   ball0.Vz=-V0*nz;
@@ -438,14 +440,14 @@ int main()
   int collisions = 0;
 
   double E0 = ET;
-  double eps = mp*vm*vm/(R0*q0*q0);//...
+  double eps = mp*vm*vm/(R0*q0*q0*10);//...
 
   double collP = 0, collR = 0;
   //1. Inicializar las posiciones de las particulas.
   colls.InitPositions(balls, rand64);
 	
   double polarization=0,minPol=q0*L;//??
-  cout << "index" <<"\t\t"<< "m" <<"\t\t"<< "q" <<"\t\t"<< "z" <<"\t\t"<< "vz" << "\t\t" << "Ei" << "\n"; 
+  /*cout << "index" <<"\t\t"<< "m" <<"\t\t"<< "q" <<"\t\t"<< "z" <<"\t\t"<< "vz" << "\t\t" << "Ei" << "\n"; 
   for(int i=0;i<N;i++)
     cout << balls[i].GetI() << "\t"
 	 << balls[i].GetM() << "\t"
@@ -454,8 +456,8 @@ int main()
 	 << balls[i].GetVz() << "\t"
 	 << balls[i].GetE() << "\n"; 
   cout << "-------------------------------------------------" << endl;
-
-  while(collisions <= 15)
+  */
+  while(collisions <= 15000)
     {
       imin = colls.LowestParticleIndex(balls);
       colls.CollisionTimeGround(balls[imin]);
@@ -483,13 +485,13 @@ int main()
 	  break;
 	}
       indexColl = colls.GetIndex();
-      colls.ShowTimes();
+      /*colls.ShowTimes();
       cout << "collison" << "\t\t" << "tColl" << "\t\t" << "indexColl" << endl;
-      cout << collisions << "\t" << tColl << "\t" << indexColl << endl;
+      cout << collisions << "\t" << tColl << "\t" << indexColl << endl;*/
       //4. Integrar las particulas con dt=tmin.
       for(int i = 0;i<N;i++){
 	  balls[i].Integrate(tColl);
-	  balls[i].MovementEq(eps);}
+	  balls[i].MovementEq(eps,E0);}
       //5. Realizar la colision entre I e I-1. 
       if(indexColl == 0){
 	colls.CollideGround(balls[indexColl],rand64);
@@ -503,23 +505,23 @@ int main()
 	collR = rand64.r();
 	if(collR < collP)//decidir si colisiona o no. (no estoy seguro si es asi pero tiene sentido.)
 	  colls.CollideBalls(balls[indexColl], balls[indexColl-1], rand64, tColl);
-	else
-	  cout << "particles didn't collided!\n";
+	/*else
+	  cout << "particles didn't collided!\n";*/
       }
       //6. Verificar si el sistema es neutro electricamente
       polarization = colls.ChargeNeutrality(balls);
       if(polarization > minPol){
 	cout << "polarization is high! : " << polarization << "\n";
-	E0 -= eps;}
+	E0 -= polarization;}
       if(polarization < -minPol){
 	cout << "polarization is low! : " << polarization << "\n";
-	E0 += eps;}
+	E0 -= polarization;}
       
-      //colls.SortParticles(balls);
+      colls.SortParticles(balls);
       
       //7. Imprimir y actualizar el siguiente paso.
-      cout << "index" <<"\t\t"<< "m" <<"\t\t"<< "q" <<"\t\t"<< "z" <<"\t\t"<< "vz" << "\t\t" << "Ei" <<"\n"; 
-      for(int i=0;i<N;i++)
+      //cout << "index" <<"\t\t"<< "m" <<"\t\t"<< "q" <<"\t\t"<< "z" <<"\t\t"<< "vz" << "\t\t" << "Ei" <<"\n"; 
+      /*for(int i=0;i<N;i++)
 	cout << balls[i].GetI() << "\t"
 	     << balls[i].GetM() << "\t"
 	     << balls[i].GetQ() << "\t"
@@ -528,11 +530,20 @@ int main()
 	     << balls[i].GetVz() << "\n";
       cout << "-------------------------------------------------" << endl;
       //if(collisions > 5000 && collisions % 50 == 0)
-      //	colls.MeasureDensity(balls);
+      //	colls.MeasureDensity(balls);*/
       time += tColl;
       collisions++;
       
     }
   //colls.PrintDensity();
+  cout << "index" <<"\t\t"<< "m" <<"\t\t"<< "q" <<"\t\t"<< "z" <<"\t\t"<< "vz" << "\t\t" << "Ei" <<"\n"; 
+      for(int i=0;i<N;i++)
+	cout << balls[i].GetI() << "\t"
+	     << balls[i].GetM() << "\t"
+	     << balls[i].GetQ() << "\t"
+	     << balls[i].GetZ() << "\t"
+	     << balls[i].GetE()-ET << "\t"
+	     << balls[i].GetVz() << "\n";
+      cout << "-------------------------------------------------" << endl;
   return 0;
 }
