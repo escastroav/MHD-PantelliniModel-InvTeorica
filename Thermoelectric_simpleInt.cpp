@@ -28,7 +28,7 @@ const double TL = 6.4e5;//
 const double kB = g*Rsun*mp/(2*gmma*T0);//Ec 12 del paper On temperature Profile...
 
 const double vm = sqrt(2*kB*T0/me);
-const double U_ab = 5e-1*vm;
+const double U_ab = 1e-1;
 
 const double ET = 0;//me*vm*vm/(q0*L);
 
@@ -83,7 +83,7 @@ void Ball::Integrate(double dt)
 class Collider
 {
 private:
-  double t[N];
+  double t[N+1];
   double E[N];
   double tmin=0.0;
   int I = 0;
@@ -95,6 +95,8 @@ public:
   ~Collider(void);
   double GetTmin(void){return tmin;};
   int GetIndex(void){return I;};
+  int LowestParticleIndex(Ball * balls);
+  int HighestParticleIndex(Ball * balls);
   void GetCollisionTime(Ball & ball1, Ball & ball2);
   void GetElectricField(Ball * ball, double epsilon);
   void CollisionTimeGround(Ball & ball0);
@@ -157,9 +159,9 @@ void Collider::CollisionTimeGround(Ball & ball0)
 {
   double t0=0, z0 = ball0.z, Vz0 = ball0.Vz, az0 = ball0.az;
   double disc = Vz0*Vz0-2*az0*z0, t1=0,t2=0;
-  if(abs(z0) < 1e-10)
-    t0 = 1e10;
-  else if(az0 == 0)
+  /*if(abs(z0) < 1e-10)
+    t0 = 1e10;*/
+  if(az0 == 0)
     {
       if(Vz0<0)
 	t0 = -z0/Vz0;
@@ -182,16 +184,16 @@ void Collider::CollisionTimeGround(Ball & ball0)
 
   if(t0>0 && t0 != 1e10)
     {tmin = t0;
-      I = 0;}
+      I = ball0.i;}
   t[0] = t0;
 }
 void Collider::CollisionTimeCeil(Ball & ball0)
 {
   double t0=0, z0 = ball0.z-L, Vz0 = ball0.Vz, az0 = ball0.az;
   double disc = Vz0*Vz0-2*az0*z0, t1=0,t2=0;
-  if(abs(z0) < 1e-10)
-    t0 = 1e10;
-  else if(az0 == 0)
+  /*if(abs(z0) < 1e-10)
+    t0 = 1e10;*/
+  if(az0 == 0)
     {
       if(Vz0>0)
 	t0 = -z0/Vz0;
@@ -213,8 +215,8 @@ void Collider::CollisionTimeCeil(Ball & ball0)
     t0 = 1e10;
   if(t0>0 && t0<tmin)    
     {tmin = t0;  
-      I = ball0.i;}
-  t[ball0.i] = t0;
+      I = ball0.i+1;}
+  t[N] = t0;
 }
 void Collider::CollideBalls(Ball & ball1, Ball & ball2, Crandom ran, double dt)
 {
@@ -243,7 +245,7 @@ void Collider::CollideBalls(Ball & ball1, Ball & ball2, Crandom ran, double dt)
 }
 void Collider::CollideGround(Ball & ball0, Crandom ran)//Maxwellian distribution
 {
-  float alpha = ball0.m/(2*kB*T0), sigma = sqrt(1./(2*alpha));
+  double alpha = ball0.m/(2*kB*T0), sigma = sqrt(1./(2*alpha));
   ran.Reset((unsigned long long)rand());//Actualziar seed para que ran.r() no sea el mismo.
   double V0 = abs(ran.gauss(0.,sigma));
   ran.Reset((unsigned long long)rand());
@@ -271,7 +273,7 @@ while(true)//Intento de generar variable aleatorio con distribución sin^2(theta
 }
 void Collider::CollideCeil(Ball & ball0, Crandom ran)//Maxwellian distribution
 {
-  float alpha = ball0.m/(2*kB*T0),sigma = sqrt(1./(2*alpha));
+  double alpha = ball0.m/(2*kB*T0), sigma = sqrt(1./(2*alpha));
   ran.Reset((unsigned long long)rand());//Actualziar seed para que ran.r() no sea el mismo.
   double V0 = abs(ran.gauss(0.,sigma));
   ran.Reset((unsigned long long)rand());
@@ -391,10 +393,36 @@ void Collider::SortParticles(Ball * balls)
 	}
     }
 }
+int Collider::LowestParticleIndex(Ball * balls)
+{
+  double zmin = balls[0].z;
+  double I_min = balls[0].i;
+  for(int i=1;i<N;i++)
+    {
+      if(balls[i].z < zmin){
+	zmin = balls[i].z;
+	I_min = balls[i].i;
+      }
+    }
+  return I_min;
+}
+int Collider::HighestParticleIndex(Ball * balls)
+{
+  double zmax = balls[N-1].z;
+  double I_max = balls[N-1].i;
+  for(int i=N-2;i>=0;i--)
+    {
+      if(balls[i].z > zmax){
+	zmax = balls[i].z;
+	I_max = balls[i].i;
+      }
+    }
+  return I_max;
+}
 void Collider::ShowTimes(void)
 {
   cout << "times" << endl;
-  for(int i=0;i<N;i++)
+  for(int i=0;i<N+1;i++)
     cout << t[i] << "\t";
   cout << endl;
 }
@@ -404,6 +432,7 @@ int main()
   Ball balls[N];
   Collider colls;
 
+  int imin=0,imax=0;
   double tColl = 0, time = 0; 
   int indexColl = 0;
   int collisions = 0;
@@ -428,12 +457,14 @@ int main()
 
   while(collisions <= 15)
     {
-      colls.CollisionTimeGround(balls[0]);
-      for(int i = 1;i<N-1;i++)
+      imin = colls.LowestParticleIndex(balls);
+      colls.CollisionTimeGround(balls[imin]);
+      for(int i = 1;i<N;i++)
 	{
 	  colls.GetCollisionTime(balls[i-1],balls[i]);
 	}
-      colls.CollisionTimeCeil(balls[N-1]);
+      imax = colls.HighestParticleIndex(balls);
+      colls.CollisionTimeCeil(balls[imax]);
       //3. Obtener el tmin e I de colision.
       tColl = colls.GetTmin();
       if(tColl == 0)
@@ -463,8 +494,8 @@ int main()
       if(indexColl == 0){
 	colls.CollideGround(balls[indexColl],rand64);
       }
-      else if(indexColl == N-1){
-	colls.CollideCeil(balls[indexColl],rand64);
+      else if(indexColl == N){
+	colls.CollideCeil(balls[indexColl-1],rand64);
       }
       else{
 	rand64.Reset((unsigned long long)rand());
@@ -484,7 +515,7 @@ int main()
 	cout << "polarization is low! : " << polarization << "\n";
 	E0 += eps;}
       
-      colls.SortParticles(balls);
+      //colls.SortParticles(balls);
       
       //7. Imprimir y actualizar el siguiente paso.
       cout << "index" <<"\t\t"<< "m" <<"\t\t"<< "q" <<"\t\t"<< "z" <<"\t\t"<< "vz" << "\t\t" << "Ei" <<"\n"; 
