@@ -61,8 +61,9 @@ void Ball::InitBall(int i0, double z0, double Vx0, double Vy0, double Vz0,double
 {i=i0; z=z0; Vx=Vx0; Vy=Vy0; Vz=Vz0;q=q0;m=mp;E=E0;az=-g+q*E/m;}
 void Ball::MovementEq(double epsilon)
 {
+  double r = z + R0;
   E += q*epsilon*0.5;
-  az = -g+q*E/m;
+  az = -g/(r*r)+q*E/m;
 }
 void Ball::IntegrateZ(double dt, double coeff)
 {
@@ -86,8 +87,10 @@ private:
   double I = 0;
   double * ne = nullptr;
   double * np = nullptr;
-  double dz = 0.245*H;
-  int M = 0;
+  double * fe = nullptr;
+  double * fp = nullptr;
+  double dz = 0.245*H, dv = 0.1;
+  int M = 0, Mv = 100;
 public:
   Collider(void);
   ~Collider(void);
@@ -104,9 +107,12 @@ public:
   double ChargeNeutrality(Ball * balls);
   void MeasureDensity(Ball * balls);
   void PrintDensity(void);
+  void ReinjectParticles(Ball * balls,Crandom ran);
   double TotalEnergy(Ball * balls);
   bool AreBallsSorted(Ball * balls);
   double CollisionProbability(Ball & ball1, Ball & ball2);
+  void VelocityDistribution(Ball * balls);
+  void PrintVelocities(void);
 };
 Collider::Collider(void)
 {
@@ -114,6 +120,8 @@ Collider::Collider(void)
   dz = h / M;
   ne = new double[M];
   np = new double[M];
+  fe = new double[Mv];
+  fp = new double[Mv];  
   for(int i=0;i<N;i++)
     t[i] = 0;
 }
@@ -153,37 +161,7 @@ void Collider::CollisionTimeBound(Ball & ball0)
   t0 = (Vz0 + sqrt(Vz0*Vz0+2*g*z0))/g;
   tmin = t0;
   I = ball0.i;
-  t[0] = t0;/*
-  double t0=0, z0 = ball0.z, Vz0 = ball0.Vz, az0 = ball0.az;
-  double disc = Vz0*Vz0-2*az0*z0, t1=0,t2=0;
-  if(abs(z0) < R0*1e-5)
-    t0=1e10;
-  else if(az0 == 0)
-    {
-      if(Vz0<0)
-	t0 = -z0/Vz0;
-      else
-	t0 = 1e10;
-    }     
-  else if(disc >= 0)
-    {
-      t1 = (- Vz0 - sqrt(disc))/az0;
-      t2 = (- Vz0 + sqrt(disc))/az0;
-      if(t1*t2 < 0)
-	t0 = (t1>0)? t1 : t2;
-      else if(t1 > 0)
-	t0 = (t1<t2)? t1 : t2;
-      else
-	t0 = 1e10;
-    }
-  else
-    t0 = 1e10;
-
-  if(t0>0 && t0 != 1e10)
-    {tmin = t0;
-      I = ball0.i;}
-      t[0] = t0;*/
-  
+  t[0] = t0;
 }
 void Collider::CollideBalls(Ball & ball1, Ball & ball2, Crandom ran, double dt)
 {
@@ -213,6 +191,23 @@ void Collider::CollideBound(Ball & ball0)
 {
   double Vz0 = (-1)*ball0.Vz;
   ball0.Vz=Vz0;
+}
+void Collider::ReinjectParticles(Ball * balls,Crandom ran)
+{
+  ran.Reset((unsigned long long)rand());
+  for(int i=0;i<N;i++)
+    {
+      if(balls[i].z > h)
+	{
+	  balls[i].z=R0;
+	  balls[i].Vz = ran.gauss(0,1.);
+	}
+      if(balls[i].z < R0)
+	{
+	  balls[i].z=R0;
+	  balls[i].Vz = ran.gauss(0,1.);
+	}
+    }
 }
 void Collider::InitPositions(Ball * balls, Crandom ran, double E0)
 {
@@ -293,6 +288,39 @@ void Collider::MeasureDensity(Ball * balls)
     }
   
 }
+void Collider::VelocityDistribution(Ball * balls)
+{
+  int j = 0;
+  double vi = 0, ball_vi=0;
+  dv = 1e-3;
+  //int sum_n = 0;   
+  for(int l = 0;l<Mv;l++)
+    {
+      vi = (l-Mv/2+1)*dv;
+      for(int i = 0; i<N; i++)
+	{
+	  ball_vi = balls[i].Vz;
+	  if(ball_vi >= vi && ball_vi < vi+dv)
+	    {
+	      if(balls[i].q < 0)
+		fe[l]+=1.;
+	      else
+		fp[l]+=1.;
+	    }
+	}
+      //cout << vi << "\t" << f[l] << "\n";
+    }
+  
+}
+void Collider::PrintVelocities(void)
+{
+  double vi = 0;
+  for(int l = 0;l<Mv;l++)
+    {
+      vi = (l-Mv/2+1)*dz;
+      cout << vi << "\t" << fe[l] << "\t" << fp[l] << "\n";
+    }
+}
 void Collider::PrintDensity(void)
 {
   double zi = 0;
@@ -344,6 +372,7 @@ void InicieCuadro(void){
 void TermineCuadro(void){
     cout<<endl;
 }
+
 double Collider::TotalEnergy(Ball * balls)
 {
   double K=0.,U=0.,E=0.;
@@ -368,7 +397,7 @@ int main()
 
   int imin=0;
 
-  double E0 = 0., eps = 5e-3, polar = 0;
+  double E0 = 0., eps = 1e-3, polar = 0;
   double Pu = 0, chanceColl = 0;
   bool areBallsSorted = true;
 
@@ -466,6 +495,7 @@ int main()
       collisions++;
       //cout << tColl << endl;
       srand((unsigned)collisions);
+      colls.ReinjectParticles(balls,rand64);
       colls.SortParticles(balls);
     }
   colls.PrintDensity();
