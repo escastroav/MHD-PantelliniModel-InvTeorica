@@ -20,7 +20,7 @@ const double me = 1e-2;
 
 const double e = 1e-3;
 
-const double U_ab = 0.5;
+const double U_ab = 1.;
 
 const double Zi = 0.1786178958448091;
 const double Lambda = -0.2123418310626054;
@@ -364,11 +364,11 @@ int main()
 
   double tColl = 0, time = 0; 
   int indexColl = 0;
-  int collisions = 0;
+  int collisions = 0, noCollided=0;
 
   int imin=0;
 
-  double E0 = 0., eps = 1e-3, polar = 0;
+  double E0 = 0., eps = 5e-3, polar = 0;
   double Pu = 0, chanceColl = 0;
   bool areBallsSorted = true;
 
@@ -445,11 +445,13 @@ int main()
       }
       else{
 	//srand(indexColl);//collRand.Reset((unsigned long long)rand());
-        //chanceColl = (double)rand()/((double)RAND_MAX);
+        chanceColl = (double)rand()/((double)RAND_MAX);
 	//cout << chanceColl << endl;
-	//Pu = 1;//colls.CollisionProbability(balls[indexColl], balls[indexColl-1]);
-	//if(chanceColl < Pu)
-	colls.CollideBalls(balls[indexColl], balls[indexColl-1], rand64, tColl);
+	Pu = colls.CollisionProbability(balls[indexColl], balls[indexColl-1]);
+	if(chanceColl < Pu)
+	  colls.CollideBalls(balls[indexColl], balls[indexColl-1], rand64, tColl);
+	else
+	  noCollided++;
 	//balls[indexColl-1].Integrate(tColl);
 	//balls[indexColl].Integrate(tColl);
       }
@@ -463,11 +465,12 @@ int main()
 	time += tColl;
       collisions++;
       //cout << tColl << endl;
-      //srand((unsigned)collisions);
+      srand((unsigned)collisions);
       colls.SortParticles(balls);
     }
-  //colls.PrintDensity();
-  for(int i=0;i<N;i++)cout << balls[i].GetI() << "\t" << balls[i].GetQ() << "\t" << balls[i].GetZ() << "\t" << balls[i].GetAz() << "\n";
+  colls.PrintDensity();
+  //for(int i=0;i<N;i++)cout << balls[i].GetI() << "\t" << balls[i].GetQ() << "\t" << balls[i].GetZ() << "\t" << balls[i].GetAz() << "\n";
   cout << collisions << endl;
+  cout << noCollided << endl;
   return 0;
 }
