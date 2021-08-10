@@ -61,8 +61,8 @@ private:
   double I = 0;
   double * n = nullptr;
   double * f = nullptr;
-  double dz = 0.245*H, dv=0.1;
-  int M = 0, Mv = 100;
+  double dz = 0.245*H, dv=2.;
+  int M = 0, Mv = 1000;
 public:
   Collider(void);
   ~Collider(void);
@@ -215,10 +215,10 @@ void Collider::VelocityDistribution(Ball * balls)
   //int sum_n = 0;   
   for(int l = 0;l<Mv;l++)
     {
-      vi = (l-Mv/2+1)*dv;
+      vi = l*dv;
       for(int i = 0; i<N; i++)
 	{
-	  ball_vi = balls[i].Vz;
+	  ball_vi = sqrt(balls[i].Vz*balls[i].Vz+balls[i].Vy*balls[i].Vy+balls[i].Vx*balls[i].Vx);
 	  if(ball_vi >= vi && ball_vi < vi+dv)
 	    f[l]+=1./N;
 	}
@@ -240,7 +240,7 @@ void Collider::PrintVelocities(void)
   double vi = 0;
   for(int l = 0;l<Mv;l++)
     {
-      vi = (l-Mv/2+1)*dz;
+      vi = l*dz;
       cout << vi << "\t" << f[l] << "\n";
     }
 }
@@ -303,17 +303,15 @@ int main()
   //1. Inicializar las posiciones de las particulas.
   colls.InitPositions(balls, rand64);
   //InicieAnimacion();
-  //cout << "coll" << "\t" << "time" << "\t" << "z1" << "\t" <<  "z2" << "\t" <<  "z3" << "\t" <<  "z4" << "\t" <<  "z5" << "\n" ;
+  //cout << "coll" << "\t" << "time" << "\t" << "z25" << "\t" <<  "z50" <<  "\n" ;
   while(time <= 10000*tf)
     {
       // 0. Imprimir.
-      //cout << collisions << "\t" << time;
-      /*for(int i=0;i<N;i+=2)
-	{
-	  cout << "\t" <<  balls[i].GetZ();
-	}
-	cout << "\n" ;*/
-
+      /*if(collisions % 1000 == 0){
+      cout << collisions << "\t"
+	   << time << "\t"
+	   << balls[24].GetZ() << "\t"
+	   << balls[49].GetZ() << "\n";}*/
       //2. Calcular todos los tiempos de colision entre i e i-1.
       colls.CollisionTimeBound(balls[0]);
       for(int i = 1;i<N;i++)
@@ -355,14 +353,14 @@ int main()
 	  balls[i].PrintBall();
 	  TermineCuadro();*/
       if(collisions > 5000 && collisions % 50 == 0)
-	colls.MeasureDensity(balls);
+	colls.VelocityDistribution(balls);
       time += tColl;
       collisions++;
       //E0 = colls.TotalEnergy(balls);
 
     }
   //colls.MeasureDensity(balls);
-  colls.PrintDensity();
+  colls.PrintVelocities();
   //for(int i=0;i<N;i++)cout << balls[i].GetI() << "\t" << balls[i].GetZ() << "\n";
   //cout << collisions << endl;
   return 0;

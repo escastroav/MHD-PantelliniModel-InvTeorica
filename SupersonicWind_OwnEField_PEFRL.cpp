@@ -89,8 +89,8 @@ private:
   double * np = nullptr;
   double * fe = nullptr;
   double * fp = nullptr;
-  double dz = 0.245*H, dv = 0.1;
-  int M = 0, Mv = 100;
+  double dz = 0.245*H, dv = 2.;
+  int M = 0, Mv = 2000;
 public:
   Collider(void);
   ~Collider(void);
@@ -127,7 +127,7 @@ Collider::Collider(void)
 }
 Collider::~Collider(void)
 {
-  delete ne; delete np;
+  delete ne; delete np; delete fe; delete fp;
 }
 void Collider::ElectricField(Ball * balls,double epsilon, double E0)
 {
@@ -296,10 +296,10 @@ void Collider::VelocityDistribution(Ball * balls)
   //int sum_n = 0;   
   for(int l = 0;l<Mv;l++)
     {
-      vi = (l-Mv/2+1)*dv;
+      vi = (l)*dv;
       for(int i = 0; i<N; i++)
 	{
-	  ball_vi = balls[i].Vz;
+	  ball_vi = sqrt(balls[i].Vz*balls[i].Vz+balls[i].Vy*balls[i].Vy+balls[i].Vx*balls[i].Vx);
 	  if(ball_vi >= vi && ball_vi < vi+dv)
 	    {
 	      if(balls[i].q < 0)
@@ -317,7 +317,7 @@ void Collider::PrintVelocities(void)
   double vi = 0;
   for(int l = 0;l<Mv;l++)
     {
-      vi = (l-Mv/2+1)*dz;
+      vi = (l)*dz;
       cout << vi << "\t" << fe[l] << "\t" << fp[l] << "\n";
     }
 }
@@ -490,7 +490,7 @@ int main()
 	  balls[i].PrintBall();
 	  TermineCuadro();*/
       if(collisions > 5000 && collisions % 50 == 0)
-	colls.MeasureDensity(balls);
+	colls.VelocityDistribution(balls);
 	time += tColl;
       collisions++;
       //cout << tColl << endl;
@@ -498,7 +498,7 @@ int main()
       colls.ReinjectParticles(balls,rand64);
       colls.SortParticles(balls);
     }
-  colls.PrintDensity();
+  colls.PrintVelocities();
   //for(int i=0;i<N;i++)cout << balls[i].GetI() << "\t" << balls[i].GetQ() << "\t" << balls[i].GetZ() << "\t" << balls[i].GetAz() << "\n";
   cout << collisions << endl;
   cout << noCollided << endl;
