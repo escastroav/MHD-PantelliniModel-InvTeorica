@@ -10,8 +10,8 @@ const int N = 50*size;
 const double R0 = 1./size;
 
 const double h = N*R0;
-const double g = 9.8e-3*R0;
-const double H = h*.2; // kT/mg=rmax/5
+const double g = 2.73e-3*R0;//GM
+const double H = h*.2; 
 
 const double tf = sqrt(H/g);
 
@@ -22,12 +22,18 @@ const double e = 1e-3;
 
 const double U_ab = 1.;
 
+const double L = 1e-2;
+
+const double T0 = 1.5e6;
+
 const double Zi = 0.1786178958448091;
 const double Lambda = -0.2123418310626054;
 const double Xi = -0.06626458266981849;
 
 const double Coeff1 = (1-2*Lambda)*0.5;
 const double Coeff2 = (1-2*(Xi+Zi));
+
+double sq2 = sqrt(2.0), sqPi2 = sqrt(2.0/M_PI);
 
 class Ball
 {
@@ -63,7 +69,7 @@ void Ball::MovementEq(double epsilon)
 {
   double r = z + R0;
   E += q*epsilon*0.5;
-  az = -g/(r*r)+q*E/m;
+  az = -g/(r*r)+L*L/(m*m*r*r*r)+q*E/m;
 }
 void Ball::IntegrateZ(double dt, double coeff)
 {
@@ -90,7 +96,7 @@ private:
   double * fe = nullptr;
   double * fp = nullptr;
   double dz = 0.245*H, dv = 2.;
-  int M = 0, Mv = 2000;
+  int M = 0, Mv = 100;
 public:
   Collider(void);
   ~Collider(void);
@@ -102,7 +108,7 @@ public:
   void GetCollisionTime(Ball & ball1, Ball & ball2);
   void CollisionTimeBound(Ball & ball0);
   void CollideBalls(Ball & ball1, Ball & ball2, Crandom rand, double dt);
-  void CollideBound(Ball & ball0);
+  void CollideBound(Ball & ball0,Crandom ran);
   void InitPositions(Ball * balls, Crandom ran, double E0);
   double ChargeNeutrality(Ball * balls);
   void MeasureDensity(Ball * balls);
@@ -187,25 +193,43 @@ void Collider::CollideBalls(Ball & ball1, Ball & ball2, Crandom ran, double dt)
   //Integrar...
   //ball1.z+=ball1.Vz*dt; ball2.z+=ball2.Vz*dt;
 }
-void Collider::CollideBound(Ball & ball0)
+void Collider::CollideBound(Ball & ball0, Crandom ran)
 {
-  double Vz0 = (-1)*ball0.Vz;
-  ball0.Vz=Vz0;
+  ran.Reset((unsigned long long)rand());
+  double V0 = 0, Pv = 0, a = ball0.m/(2*M_PI*T0), v = 0,P_th = ran.r();
+  double theta = acos(sqrt(P_th)), phi = 2*M_PI*ran.r();
+  double nx=cos(phi)*sin(theta), ny=sin(phi)*sin(theta), nz=cos(theta);
+  V0 = sqrt(ball0.Vz*ball0.Vz+ball0.Vy*ball0.Vy+ball0.Vx*ball0.Vx);
+  Pv = erf(V0/sqrt(2)*a)-sqrt(2/M_PI)*(V0*exp(-V0*V0/(2*a*a)))/a;
+  V0 *= Pv;
+  ball0.Vx = v*nx;
+  ball0.Vy = v*ny;
+  ball0.Vz = v*nz;
 }
 void Collider::ReinjectParticles(Ball * balls,Crandom ran)
 {
-  ran.Reset((unsigned long long)rand());
+  ran.Reset((unsigned long long)rand()); 
+  double V0 = 0, Pv = 0, a = 0, v = 0,P_th = ran.r();
+  double theta = 0, phi = 0, nx=0, ny=0, nz=0;
   for(int i=0;i<N;i++)
     {
-      if(balls[i].z > h)
+      if(balls[i].z > h || balls[i].z < R0)
 	{
+	  theta = acos(sqrt(P_th)); phi = 2*M_PI*ran.r();
+	  nx = cos(phi)*sin(theta); ny = sin(phi)*sin(theta); nz = cos(theta); 
+	  a = balls[i].m/(2*M_PI*T0);
 	  balls[i].z=R0;
-	  balls[i].Vz = ran.gauss(0,1.);
-	}
-      if(balls[i].z < R0)
-	{
-	  balls[i].z=R0;
-	  balls[i].Vz = ran.gauss(0,1.);
+	  V0 = sqrt(balls[i].Vz*balls[i].Vz+balls[i].Vy*balls[i].Vy+balls[i].Vx*balls[i].Vx);
+	  Pv = erf(V0/sqrt(2)*a)-sqrt(2/M_PI)*(V0*exp(-V0*V0/(2*a*a)))/a;
+	  while(v > Pv)
+	    {
+	      ran.Reset((unsigned long long)rand());
+	      v = ran.r();
+	    }
+	  V0 *= Pv;
+	  balls[i].Vx = v*nx;
+	  balls[i].Vy = v*ny;
+	  balls[i].Vz = v*nz;	  
 	}
     }
 }
@@ -469,7 +493,7 @@ int main()
       polar = colls.ChargeNeutrality(balls);
       //5. Realizar la colision entre I e I-1.
       if(indexColl == 0){
-	colls.CollideBound(balls[indexColl]);
+	colls.CollideBound(balls[indexColl],rand64);
 	//balls[indexColl].Integrate(tColl);
       }
       else{
@@ -489,7 +513,7 @@ int main()
       for(int i=0;i<N;i++)
 	  balls[i].PrintBall();
 	  TermineCuadro();*/
-      if(collisions > 5000 && collisions % 50 == 0)
+      if(collisions > 50000 && collisions % 1000 == 0)
 	colls.VelocityDistribution(balls);
 	time += tColl;
       collisions++;
