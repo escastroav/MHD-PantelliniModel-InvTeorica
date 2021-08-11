@@ -316,14 +316,13 @@ int main()
       }
       //6. Imprimir y actualizar el siguiente paso.
       if(collisions > 5000 && collisions % 50 == 0)
-	colls.VelocityDistribution(balls);
+	colls.MeasureDensity(balls);
       time += tColl;
       collisions++;
       //E0 = colls.TotalEnergy(balls);
 
     }
-  colls.MeasureDensity(balls);
-  //colls.PrintVelocities();
+  colls.PrintDensity();
   //for(int i=0;i<N;i++)cout << balls[i].GetI() << "\t" << balls[i].GetZ() << "\n";
   //cout << collisions << endl;
   return 0;
