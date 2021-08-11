@@ -1,16 +1,16 @@
-all: pantellini.x
+all: SolarWind_Distribution.x SolarWind_Profile.x Barometric_Law.x Hartmann.x
 
-%.o: %.cpp
-	g++ -c $< -o $@
+SolarWind_Distribution.x: SolarWind_Distribution.cpp
+	g++ $^ -o $@
 
-pantellini.x: pantellini.o main_pantellini.o
-	g++ -fconcepts -std=c++11 -fsanitize=address -fsanitize=undefined $^ -o $@
+SolarWind_Profile.x: SolarWind_Profile.cpp
+	g++ $^ -o $@
 
-test: main_project.o project_test.o
-	g++ -std=c++11 -Wall -fsanitize=address -fsanitize=undefined $^ -o project_test.o -lgsl -lgslcblas
+Barometric_Law.x: Barometric_Law.cpp
+	g++ $^ -o $@
 
-valgrind: main_project.x
-	valgrind --tool=memcheck --leak-check=yes ./main_project.x
+Hartmann.x: Hartmann.cpp
+	g++ -o Hartmann.x -std=c++11 Hartmann.cpp
 
 clean:
 	-rm -f *~ *# *o *out *x 
